@@ -425,6 +425,7 @@ Tests:
     `{"error": e.to_dict()}` to stderr and exiting with `exit_code(e)`
     (Auth 3, Forbidden 4, NotFound 5, RateLimited 6, other 1).
   - `write(result, *, raw, jsonl)` writes `model_dump(mode="json")` or `.raw`.
+    `teams skills` (Task 11) offers no `--raw`: `TeamSkills` is built, not parsed.
   - `user_ref(str) -> UserRef` raises `typer.BadParameter` (exit 2) for input
     that is neither numeric nor `me`.
   - Shared `Annotated` types: `RawOption`, `JsonlOption`, `UserArg`.

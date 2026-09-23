@@ -3,36 +3,32 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Literal
 
-from pydantic import BaseModel, ConfigDict
-
 from cinode.errors import ForbiddenError, NotFoundError
-from cinode.models import Skill, Team, UserSummary
+from cinode.models import CinodeModel, Skill, Team, UserSummary
 
 if TYPE_CHECKING:
     from cinode._client import Cinode
 
 
-class _Result(BaseModel):
-    """A frozen result model. We build it ourselves, so unlike `CinodeModel` it has no `.raw`."""
-
-    model_config = ConfigDict(frozen=True)
+# The result models are built from keyword arguments, not a Cinode payload, so
+# their `.raw` holds those arguments (model instances included) and is not JSON.
 
 
-class MemberSkills(_Result):
+class MemberSkills(CinodeModel):
     """One member and their skills."""
 
     user: UserSummary
     skills: list[Skill]
 
 
-class Skipped(_Result):
+class Skipped(CinodeModel):
     """A member whose skills could not be read, and why."""
 
     user: UserSummary
     reason: Literal["forbidden", "not_found"]
 
 
-class TeamSkills(_Result):
+class TeamSkills(CinodeModel):
     """A team, the skills of each member, and the members that were skipped."""
 
     team: Team
