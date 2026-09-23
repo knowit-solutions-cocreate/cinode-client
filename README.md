@@ -1,7 +1,176 @@
 # cinode-client
 
 A read-only Python library and CLI for the [Cinode](https://www.cinode.com/) API,
-meant for agents first and humans second. It can only issue GET requests.
+meant for agents first and humans second.
 
-Work in progress. See [`docs/design.md`](docs/design.md) for the design and
+It is **read-only by construction**: the transport can only issue GET, so there
+is no write path to enable by mistake. Version 0.1 covers skills, plus the
+users, teams and keywords needed to reach them. See
+[`docs/design.md`](docs/design.md) for the design and
 [`docs/plan.md`](docs/plan.md) for the plan.
+
+## Install
+
+Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
+
+```sh
+uv tool install .        # a `cinode` command on PATH
+uv tool install -e .     # the same, editable, for working on the code
+```
+
+An installed `cinode` writes nothing but its own output. `uv run cinode …` also
+works from a checkout, but uv may print messages of its own on stderr.
+
+## Credentials
+
+The client runs as the Cinode user who owns an API account, and can read exactly
+what that user can read. Create an API account in Cinode, then set either the
+pair:
+
+```sh
+export CINODE_ACCESS_ID=...        # the full AccessId, including .app.cinode.com
+export CINODE_ACCESS_SECRET=...
+```
+
+or a single Basic credential:
+
+```sh
+export CINODE_BASIC=$(printf '%s:%s' "$CINODE_ACCESS_ID" "$CINODE_ACCESS_SECRET" | base64)
+```
+
+- The AccessId ends in `.app.cinode.com`. Copying only the hex part gives a 400
+  at `/token`.
+- If both the pair and `CINODE_BASIC` are set, the pair wins. Setting only one
+  of the pair is an error.
+- `CINODE_TIMEOUT` sets the request timeout in seconds (default 30).
+- The company id and user id are never configured; they come from the token.
+
+Secrets are never logged and never shown in `repr`.
+
+## Library
+
+```python
+from cinode import Cinode, ForbiddenError
+from cinode.ops import team_skills
+
+with Cinode.from_env() as c:              # or Cinode(access_id=..., access_secret=...)
+    me = c.users.get("me")                # User
+    skills = c.users.skills.list("me")    # list[Skill]
+    rated = [s for s in skills if s.is_rated]
+
+    python = c.keywords.search("python")  # list[Keyword]
+    teams = c.users.teams.list("me")      # list[Team]
+
+    result = team_skills(c, teams[0].id)  # TeamSkills
+    result.members                        # list[MemberSkills(user, skills)]
+    result.skipped                        # list[Skipped(user, reason)]
+
+    try:
+        c.users.skills.list(1)
+    except ForbiddenError as error:
+        print(error.status, error.path)
+```
+
+A user is a positive `int` or `"me"`. Every call returns a frozen pydantic model
+with our snake_case field names; `.raw` holds Cinode's payload. An unrated skill
+has `level` `None`, not 0. A 403 is normal: it depends on whose data is asked
+for, and `team_skills` records such members in `skipped` rather than failing.
+
+Errors derive from `CinodeError` (with `status`, `path`, `correlation_id`):
+`AuthError`, `ForbiddenError`, `NotFoundError`, `RateLimitedError`,
+`BadRequestError`, `ServerError` and `UnexpectedResponseError`. Token refresh,
+rate limiting and retries are handled inside the client.
+
+## CLI
+
+```
+cinode whoami
+cinode users list
+cinode users get <user>
+cinode users skills list <user>
+cinode users skills get <user> <keyword-id>
+cinode users teams list <user>
+cinode teams list [--match TEXT]
+cinode teams get <team-id>
+cinode teams members list <team-id>
+cinode teams skills <team-id>
+cinode keywords search <term>
+cinode schema [<model>]
+```
+
+`<user>` is a numeric id or `me`. `--jsonl` writes one object per line, and
+`--raw` writes Cinode's payload untouched (every command but `teams skills` and
+`schema`). `cinode schema` lists the output models, and `cinode schema skill`
+prints one model's JSON Schema.
+
+```sh
+cinode users skills list me | jq '[.[] | select(.is_rated)] | length'
+cinode teams list --match cocreate | jq '.[].id'
+```
+
+### Output contract
+
+- **stdout is data only:** one JSON document (an array for `list` and `search`,
+  an object for `get`), or JSON Lines with `--jsonl`. The shape is what
+  `cinode schema` describes.
+- **stderr carries errors and progress.** A failure writes one JSON object:
+
+  ```json
+  {"error": {"type": "ForbiddenError", "status": 403, "path": "...", "message": "...", "correlation_id": "..."}}
+  ```
+
+  Usage errors use the same envelope with `"type": "UsageError"`. Progress is
+  written only when stderr is a terminal.
+- `teams skills` exits 0 even when members were skipped; they are listed in
+  its `skipped` array.
+
+| Exit code | Meaning |
+|---|---|
+| 0 | success |
+| 1 | other error |
+| 2 | usage error |
+| 3 | auth |
+| 4 | forbidden |
+| 5 | not found |
+| 6 | rate limited |
+
+## Tests
+
+```sh
+uv run pytest                  # unit tests, no network, under two seconds
+uv run ruff check
+uv run ruff format --check
+uv run pyright
+```
+
+The live acceptance suite runs the `cinode` command against the real API, using
+the account owner's own profile. It needs credentials and `jq`, and never runs
+in CI:
+
+```sh
+CINODE_LIVE_TESTS=1 uv run pytest -m live
+```
+
+The ids it checks default to the author's. To run it against your own profile,
+set `CINODE_TEST_USER_ID`, `CINODE_TEST_TEAM_ID`, `CINODE_TEST_KEYWORD_ID`,
+`CINODE_TEST_KEYWORD_NAME`, `CINODE_TEST_SYNONYM_ID` and
+`CINODE_TEST_UNREADABLE_USER_ID`.
+
+The parity test compares `cinode teams skills` with a reference script. It is
+skipped unless the script exists (`CINODE_REFERENCE_SCRIPT`, default
+`~/code/sandbox/cinode-helper/fetch-team-skills.py`) and `CINODE_BASIC` is set.
+
+**Never run the live suite with `pytest -l` or `--showlocals`.** The tests keep
+live output out of their failure messages, but those flags print local
+variables, which hold it.
+
+## Data handling
+
+Everything the client reads about colleagues (names, emails, self-assessed
+levels) is personnel data.
+
+- The library never writes files; the CLI writes only to stdout.
+- Test fixtures are synthetic. Live tests read only the owner's own data and
+  team membership, and write nothing to disk.
+- Never commit live output, or paste it into an issue or pull request. `data/`,
+  `*.csv` and JSON dumps are git-ignored.

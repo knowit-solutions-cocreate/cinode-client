@@ -537,15 +537,15 @@ rules.
 
 **CHANGELOG:** the 0.1.0 entry.
 
-- [ ] Run `-m live` once more, the parity test included.
-- [ ] Commit: "Add the parity check and user documentation".
+- [x] Run `-m live` once more, the parity test included.
+- [x] Commit: "Add the parity check and user documentation".
 
 ---
 
 ## Done when
 
-- `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are clean,
-  and the default test run takes under two seconds.
-- `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
-  profile, the parity test included.
-- `uv tool install .` gives a working `cinode` on `PATH`.
+- [x] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are clean,
+      and the default test run takes under two seconds.
+- [x] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
+      profile, the parity test included.
+- [x] `uv tool install .` gives a working `cinode` on `PATH`.
