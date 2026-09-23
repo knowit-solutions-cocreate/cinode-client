@@ -237,7 +237,7 @@ class CinodeModel(BaseModel):
 | `keyword_type: int \| None` | `keyword.type` | |
 | `level: int \| None` | `level` | **0 → `None`**: unrated, not beginner |
 | `level_goal: int \| None` | `levelGoal` | |
-| `level_goal_deadline: date \| None` | `levelGoalDeadline` | |
+| `level_goal_deadline: datetime \| None` | `levelGoalDeadline` | |
 | `days_experience: int` | `numberOfDaysWorkExperience` | null → 0 |
 | `years_experience: float` | computed | `days / 365.25`, 1 decimal |
 | `favourite: bool` | `favourite` | |
@@ -267,8 +267,10 @@ it, and a test asserts that `httpx` never sees any method other than GET.
 
 **Tokens.** `TokenManager` exchanges credentials, decodes the JWT payload
 (base64 only; the signature is not verified, since the claims are used only for
-routing and expiry) and caches the token. It refreshes when less than 30 s are
-left before `exp`, and refreshes once on a 401 before retrying the request. A
+routing and expiry) and caches the token. The token's lifetime (`exp - iat`) is
+counted from the moment it arrives, using the local clock, so a local clock that
+is out of step with Cinode's does no harm. It refreshes when less than 30 s of
+that lifetime remain, and refreshes once on a 401 before retrying the request. A
 second 401 raises `AuthError`.
 
 **Rate limits.** Two sliding-window limiters: `/token` at 2 per 2 s and normal
@@ -433,17 +435,18 @@ normal use:
 |---|---|
 | `cinode whoami` | `.user_id == $CINODE_TEST_USER_ID` |
 | `cinode users get me` | `.id` matches; `.full_name` is non-empty |
-| `cinode users skills list me` | contains `keyword_id == 22070` (Python) with `synonym_id == 2930`; every element validates against `cinode schema skill` |
+| `cinode users skills list me` | contains `keyword_id == 22070` (Python) with `synonym_id == 2930`; every element validates against the `Skill` model |
 | `cinode users skills get me 22070` | `.name == "Python"` |
 | `cinode keywords search python` | contains `id == 22070` |
 | `cinode teams members list 9873` | contains the owner |
 | `cinode users skills list 1` (or another unreadable id) | exit code 4 or 5, error JSON on stderr |
 | `cinode teams skills 9873` | *slow*: every member is in `members` or `skipped`; the owner is in `members` |
 
-The ids default to the author's (user 158773, team 9873, keyword 22070) and can
-be overridden with `CINODE_TEST_USER_ID`, `CINODE_TEST_TEAM_ID` and
-`CINODE_TEST_KEYWORD_ID`, so a colleague can run the suite against their own
-profile.
+The ids default to the author's (user 158773, team 9873, keyword 22070 "Python"
+with synonym 2930) and can be overridden with `CINODE_TEST_USER_ID`,
+`CINODE_TEST_TEAM_ID`, `CINODE_TEST_KEYWORD_ID`, `CINODE_TEST_KEYWORD_NAME`,
+`CINODE_TEST_SYNONYM_ID` and `CINODE_TEST_UNREADABLE_USER_ID`, so a colleague can
+run the suite against their own profile.
 
 **Parity** (slow, skipped unless the reference script is present). Run
 `cinode teams skills 9873` and `~/code/sandbox/cinode-helper/fetch-team-skills.py 9873`,
