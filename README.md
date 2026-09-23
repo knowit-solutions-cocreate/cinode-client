@@ -98,10 +98,11 @@ cinode keywords search <term>
 cinode schema [<model>]
 ```
 
-`<user>` is a numeric id or `me`. `--jsonl` writes one object per line, and
-`--raw` writes Cinode's payload untouched (every command but `teams skills` and
-`schema`). `cinode schema` lists the output models, and `cinode schema skill`
-prints one model's JSON Schema.
+`<user>` is a numeric id or `me`. `--jsonl` writes a list as one object per
+line (every command but `schema`), and `--raw` writes Cinode's payload
+untouched (every command but `teams skills` and `schema`). `cinode schema`
+lists the output models, and `cinode schema skill` prints one model's JSON
+Schema.
 
 ```sh
 cinode users skills list me | jq '[.[] | select(.is_rated)] | length'
@@ -119,10 +120,15 @@ cinode teams list --match cocreate | jq '.[].id'
   {"error": {"type": "ForbiddenError", "status": 403, "path": "...", "message": "...", "correlation_id": "..."}}
   ```
 
-  Usage errors use the same envelope with `"type": "UsageError"`. Progress is
-  written only when stderr is a terminal.
+  Usage errors (exit 2) use the same envelope, with `"type": "UsageError"` and
+  `status`, `path` and `correlation_id` all `null`, and no rich box drawing.
+  The one exception is a group given no subcommand, which prints its help.
+  Progress is written only when stderr is a terminal.
 - `teams skills` exits 0 even when members were skipped; they are listed in
   its `skipped` array.
+- `--match` on `teams list` is a case-insensitive substring filter, applied on
+  the client side. Anything more complex belongs in `jq`.
+- `--table` output for humans is planned, not in v1.
 
 | Exit code | Meaning |
 |---|---|
@@ -155,10 +161,6 @@ The ids it checks default to the author's. To run it against your own profile,
 set `CINODE_TEST_USER_ID`, `CINODE_TEST_TEAM_ID`, `CINODE_TEST_KEYWORD_ID`,
 `CINODE_TEST_KEYWORD_NAME`, `CINODE_TEST_SYNONYM_ID` and
 `CINODE_TEST_UNREADABLE_USER_ID`.
-
-The parity test compares `cinode teams skills` with a reference script. It is
-skipped unless the script exists (`CINODE_REFERENCE_SCRIPT`, default
-`~/code/sandbox/cinode-helper/fetch-team-skills.py`) and `CINODE_BASIC` is set.
 
 **Never run the live suite with `pytest -l` or `--showlocals`.** The tests keep
 live output out of their failure messages, but those flags print local

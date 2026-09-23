@@ -84,7 +84,7 @@ tests/
   test_config.py  test_ratelimit.py  test_auth.py  test_transport.py
   test_models.py  test_resources.py  test_client.py  test_ops.py
   cli/conftest.py  cli/test_cli.py
-  live/conftest.py  live/test_acceptance.py  live/test_parity.py
+  live/conftest.py  live/test_acceptance.py
 ```
 
 ---
@@ -517,18 +517,19 @@ Tests: the design's acceptance table, one test per row, plus two more:
   `-m live`. Both must pass against the owner's profile.
 - [x] Commit: "Add the live acceptance suite".
 
-### Task 13: Parity and documentation
+### Task 13: Documentation
 
-**Files:** `tests/live/test_parity.py`, `README.md`, `CHANGELOG.md`.
+**Files:** `README.md`, `CHANGELOG.md`.
 
-**Parity:**
-- Marked `live` and `slow`. Skipped unless
-  `CINODE_REFERENCE_SCRIPT` (default
-  `~/code/sandbox/cinode-helper/fetch-team-skills.py`) exists and
-  `CINODE_BASIC` is set.
-- Run both tools on the team and compare the two `jq -c` projections:
+**Parity (done once, not kept):** a live test compared `cinode teams skills`
+with `~/code/sandbox/cinode-helper/fetch-team-skills.py` on the team, through
+these `jq -c` projections:
   - ours: `[.members[] | {user_id: .user.id, skills: ([.skills[] | {keyword_id, level: (.level // 0)}] | sort_by(.keyword_id))}] | sort_by(.user_id)`
   - the script's: `[.[] | {user_id: .id, skills: ([.skills[] | {keyword_id: .id, level}] | sort_by(.keyword_id))}] | sort_by(.user_id)`
+
+It passed in the full live run on 2026-09-23 (all members, keyword ids and
+levels matched) and was then removed, so the suite does not depend on a script
+outside the repository.
 
 **README:** what the project is, and that it is read-only; install
 (`uv tool install .`); credentials; library quick start; CLI commands; the
@@ -537,8 +538,8 @@ rules.
 
 **CHANGELOG:** the 0.1.0 entry.
 
-- [x] Run `-m live` once more, the parity test included.
-- [x] Commit: "Add the parity check and user documentation".
+- [x] Run `-m live` once more, the one-time parity check included.
+- [x] Commit: "Add the user documentation".
 
 ---
 
@@ -547,5 +548,5 @@ rules.
 - [x] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are clean,
       and the default test run takes under two seconds.
 - [x] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
-      profile, the parity test included.
+      profile.
 - [x] `uv tool install .` gives a working `cinode` on `PATH`.

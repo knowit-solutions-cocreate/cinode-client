@@ -25,5 +25,4 @@ users, teams and keywords needed to reach them.
 - **CLI:** `cinode` mirrors the library, plus `teams list --match` and
   `cinode schema`. JSON on stdout, a JSON error envelope on stderr, and
   documented exit codes.
-- **Tests:** unit tests, and a live acceptance suite with a parity check
-  against a reference script.
+- **Tests:** unit tests, and a live acceptance suite.
