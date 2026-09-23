@@ -17,12 +17,12 @@ class Context:
     @property
     def company_id(self) -> int:
         """The company id, from the token's `companySub` claim."""
-        return self.transport.tokens.get().company_id
+        return self.transport.token().company_id
 
     def user_id(self, ref: UserRef) -> int:
         """The id `ref` names: itself, or the token's `sub` for `"me"`."""
         if ref == "me":
-            return self.transport.tokens.get().user_id
+            return self.transport.token().user_id
         return ref
 
     def path(self, path: str) -> str:
