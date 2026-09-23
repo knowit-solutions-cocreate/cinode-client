@@ -443,14 +443,14 @@ and `CINODE_BASE_URL=https://api.test`, unsets `CINODE_ACCESS_*`, and mocks
 `result.stdout` and `result.stderr` separately.
 
 Tests:
-- [ ] `users skills list me` writes an array whose element equals the exact
+- [x] `users skills list me` writes an array whose element equals the exact
   expected dict. This pins the output contract.
-- [ ] Parametrized over 403, 404 and 429 (retries used up): exit 4, 5 and 6,
+- [x] Parametrized over 403, 404 and 429 (retries used up): exit 4, 5 and 6,
   an empty stdout, and the exact error envelope on stderr.
-- [ ] **Review focus 1:** with no credentials, exit 3 and a valid JSON
+- [x] **Review focus 1:** with no credentials, exit 3 and a valid JSON
   `AuthError` on stderr.
-- [ ] `users get Fredrik` gives exit 2 and makes no request.
-- [ ] Commit: "Add the CLI with whoami and users commands".
+- [x] `users get Fredrik` gives exit 2 and makes no request.
+- [x] Commit: "Add the CLI with whoami and users commands".
 
 ### Task 11: CLI teams, keywords and schema
 
