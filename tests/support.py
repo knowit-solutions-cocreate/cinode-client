@@ -12,5 +12,7 @@ class FakeClock:
         return self.t
 
     def sleep(self, seconds: float) -> None:
+        if seconds < 0:
+            raise ValueError("sleep length must be non-negative")
         self.sleeps.append(seconds)
         self.t += seconds
