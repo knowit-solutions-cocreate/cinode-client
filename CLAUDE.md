@@ -83,6 +83,46 @@ third, the orchestrator stops and asks the human.
 - live tests need credentials that are not in the environment
 - reviewers disagree on something that cannot be settled from the design
 
+### Working agreements
+
+What the loop has taught so far. These apply to every agent, whatever its role.
+When the orchestrator notices a cheaper or safer way of working, it adds it
+here right away, in a small docs PR.
+
+- **Short replies.** An agent replies to the orchestrator in at most three
+  lines: the PR URL or head SHA, the finding count or what changed, and any
+  departure. The details belong in the PR description or comment, not in the
+  reply, which keeps the orchestrator's context small.
+- **Rounds after the first review only the delta.** Reviewers read the triage
+  and Fixer comments, check the accepted items, review only the new commit
+  range, and do not re-raise rejected findings.
+- **Fixers work on a local branch.** The PR branch is usually still checked
+  out in the implementer's worktree, so a fixer runs
+  `git switch -c fix-prN origin/<branch>` and pushes with
+  `git push origin HEAD:<branch>`.
+- **The PR description tracks the code.** Whoever changes behaviour updates
+  the PR description in the same step: the implementer when opening the PR,
+  the fixer when a fix changes what the description says. A stale description
+  becomes the squash commit's message.
+- **The orchestrator fixes trivial nits itself.** A stale PR description or a
+  one-line docs wording fix is done by the orchestrator directly (in a scratch
+  worktree, never on `main`), instead of costing a fixer and another round.
+- **Carry context forward.** The orchestrator's prompt to each implementer
+  names the merged tasks, the patterns they established (helpers, validators,
+  guards) and any follow-up a review left for this task.
+- **Leave nothing running.** Agents stop every process they start before
+  replying. `ls` may be aliased to something slow, so they use `command ls`.
+- **Keep shared space clean.** Agents name scratch files and worktrees
+  uniquely (for example with the PR number and role), never overwrite files
+  they did not create, and remove their own worktrees when done. The
+  orchestrator removes the finished agent worktrees after each merge.
+- **Interrupted agents.** If the machine sleeps or an agent dies mid-step,
+  its results are on GitHub (PR, comment, push). The orchestrator checks what
+  was actually posted or pushed, and restarts only what is missing.
+- **Credentials.** Agents push over SSH using the key configured for Claude in
+  the environment (`GIT_SSH_COMMAND`). They never change git or SSH
+  configuration.
+
 ### Resuming
 
 The orchestrator keeps no state of its own; the repository holds it. To pick
@@ -113,6 +153,7 @@ not write product code.**
     matter of taste. Nits are optional.
 - Keeps the human informed with one line per step: PR opened, review round N,
   merged.
+- Adds each new lesson to *Working agreements* as soon as it is learnt.
 
 #### Implementer
 
@@ -131,7 +172,7 @@ Carries out one plan task.
   - what was built
   - any departure from the plan, and why
   - the output of the checks, summarised
-- Replies with the PR URL and a summary of up to five lines.
+- Replies as *Working agreements* describe: at most three lines.
 
 #### Reviewer (spec)
 
@@ -150,7 +191,8 @@ Checks the PR against `docs/design.md` and the task in `docs/plan.md`.
   `**Reviewer (spec)**`. Each finding is numbered, carries a severity
   (`blocking`, `should-fix` or `nit`) and gives a `file:line` reference.
   If there are no findings, the comment says `No findings.`
-- Replies with the findings, or with "no findings".
+- Replies in at most three lines: the finding count, and one line for each
+  finding that is not a nit.
 
 #### Reviewer (code)
 
@@ -181,5 +223,6 @@ Applies the findings the orchestrator accepted, and nothing else.
   that a test can pin.
 - Runs the four checks, commits in logical chunks and pushes to the same branch.
 - Posts a PR comment starting with `**Fixer**` that lists each finding number
-  and what was done about it.
-- Replies with a short summary.
+  and what was done about it, and updates the PR description if a fix changed
+  what it says.
+- Replies in at most three lines: the old and new head SHA, and what changed.
