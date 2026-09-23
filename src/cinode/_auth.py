@@ -3,6 +3,7 @@
 import base64
 import binascii
 import json
+import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -35,9 +36,10 @@ class Token:
 def decode_token(jwt: str, *, issued_at: float) -> Token:
     """Read a JWT's claims without checking its signature.
 
-    The lifetime is `exp - iat`, or 120 s if either is missing, and it is
-    counted from `issued_at` on the local clock. That way a local clock out of
-    step with Cinode's does not make every token look expired.
+    The lifetime is `exp - iat`, or 120 s if either is missing or the
+    difference is not a finite positive number. It is counted from `issued_at`
+    on the local clock. That way a local clock out of step with Cinode's does
+    not make every token look expired.
     """
     try:
         payload = jwt.split(".")[1]
@@ -48,7 +50,7 @@ def decode_token(jwt: str, *, issued_at: float) -> Token:
         lifetime = float(exp) - float(iat) if iat is not None and exp is not None else None
     except (IndexError, KeyError, TypeError, ValueError, AttributeError, binascii.Error) as e:
         raise UnexpectedResponseError(f"Cinode returned a malformed token: {e}") from None
-    if lifetime is None or lifetime <= 0:
+    if lifetime is None or not math.isfinite(lifetime) or lifetime <= 0:
         lifetime = DEFAULT_LIFETIME
     return Token(value=jwt, user_id=user_id, company_id=company_id, expires_at=issued_at + lifetime)
 

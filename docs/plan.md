@@ -169,9 +169,9 @@ Tests:
 
 **Decoding:** base64url-decode the JWT payload; the signature is not checked.
 `sub` gives the user id and `companySub` the company id. The lifetime is
-`exp - iat` when both are present, otherwise 120 s, and
-`expires_at = issued_at + lifetime`. A malformed token raises
-`UnexpectedResponseError`.
+`exp - iat` when both are present and the difference is finite and positive,
+otherwise 120 s, and `expires_at = issued_at + lifetime`. A malformed token
+raises `UnexpectedResponseError`.
 
 **Fetching:**
 - `GET /token` with `Authorization: Basic …`, after `limiter.acquire()`.
