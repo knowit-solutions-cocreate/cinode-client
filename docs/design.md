@@ -479,10 +479,13 @@ with synonym 2930) and can be overridden with `CINODE_TEST_USER_ID`,
 `CINODE_TEST_SYNONYM_ID` and `CINODE_TEST_UNREADABLE_USER_ID`, so a colleague can
 run the suite against their own profile.
 
-**Parity** (slow, skipped unless the reference script is present). Run
-`cinode teams skills 9873` and `~/code/sandbox/cinode-helper/fetch-team-skills.py 9873`,
-project both through `jq` to sorted `{user_id, skills: [{keyword_id, level}]}`
-(ours maps `null` levels to 0), and compare. Equal means the same data.
+**Parity** was checked once, at 0.1 acceptance, and not kept as a test.
+`cinode teams skills 9873` and the reference script
+`~/code/sandbox/cinode-helper/fetch-team-skills.py 9873` were projected through
+`jq` to sorted `{user_id, skills: [{keyword_id, level}]}` (ours mapping `null`
+levels to 0) and compared: every member, keyword id and level matched. The
+test was then removed, so the suite does not depend on a script outside the
+repository.
 
 ## Tooling
 
