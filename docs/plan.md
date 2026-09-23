@@ -400,8 +400,9 @@ Tests:
   - `MemberSkills(user: UserSummary, skills: list[Skill])`
   - `Skipped(user: UserSummary, reason: Literal["forbidden", "not_found"])`
   - `TeamSkills(team: Team, members: list[MemberSkills], skipped: list[Skipped])`
-- Members are deduplicated by `user_id`, keeping the first. A member with
-  `user=None` becomes `UserSummary(id=user_id)`.
+- Members are deduplicated by `user_id` in first-seen order, preferring an
+  entry that has the user inline. A member with `user=None` becomes
+  `UserSummary(id=user_id)`.
 - Import `Cinode` only under `TYPE_CHECKING`.
 
 Tests:

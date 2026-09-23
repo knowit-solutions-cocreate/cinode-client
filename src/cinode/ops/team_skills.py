@@ -48,10 +48,13 @@ def team_skills(
     ends the run. `on_progress(done, total, user)` is called after each member.
     """
     team = client.teams.get(team_id)
-    users: dict[int, UserSummary] = {}
+    # Keep each user once, in first-seen order, preferring an entry that has the
+    # user inline. Reassigning an existing key keeps its place in the dict.
+    inline: dict[int, UserSummary | None] = {}
     for member in client.teams.members.list(team_id):
-        if member.user_id not in users:
-            users[member.user_id] = member.user or UserSummary(id=member.user_id)
+        if inline.get(member.user_id) is None:
+            inline[member.user_id] = member.user
+    users = {i: user or UserSummary(id=i) for i, user in inline.items()}
 
     members: list[MemberSkills] = []
     skipped: list[Skipped] = []
