@@ -301,7 +301,7 @@ Tests:
 - `TeamMember`: `user_id: int`, `team_id`, `user: UserSummary | None` from
   `companyUser`, and `availability_percent`.
   - `user_id` is resolved by a `mode="before"` validator: top-level
-    `companyUserId` first, then `companyUser.companyUserId`. The spec allows
+    `companyUserId` first, then `companyUser.companyUserId`, then `companyUser.id`. The spec allows
     both to be null, so `AliasChoices` alone would not do.
 - `WhoAmI`: `company_id` and `user_id`.
 - `models/__init__` exports all of these, plus `CinodeModel`, `Skill` and `Keyword`.
