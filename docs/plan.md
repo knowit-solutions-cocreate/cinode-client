@@ -417,12 +417,15 @@ Tests:
 `tests/cli/conftest.py`, `tests/cli/test_cli.py`.
 
 **Produces:**
-- `app`, a `typer.Typer` with `no_args_is_help=True`, `add_completion=False`
-  and `pretty_exceptions_enable=False`.
+- `app`, a `typer.Typer` with `no_args_is_help=True`, `add_completion=False`,
+  `pretty_exceptions_enable=False` and `rich_markup_mode=None`. Its root group
+  class turns any click usage error below it into the error envelope
+  (`"type": "UsageError"`, `status`, `path` and `correlation_id` null) on
+  stderr, with exit 2. A group given no subcommand still prints its help.
 - `main()`, and the `whoami` command.
 - `_output`:
   - `run(fetch: Callable[[Cinode], Result], *, raw=False, jsonl=False)`:
-    builds `Cinode.from_env()`, and catches `CinodeError`, writing
+    builds `Cinode.from_env()`, and catches only `CinodeError`, writing
     `{"error": e.to_dict()}` to stderr and exiting with `exit_code(e)`
     (Auth 3, Forbidden 4, NotFound 5, RateLimited 6, other 1).
   - `write(result, *, raw, jsonl)` writes `model_dump(mode="json")` or `.raw`.
@@ -443,14 +446,15 @@ and `CINODE_BASE_URL=https://api.test`, unsets `CINODE_ACCESS_*`, and mocks
 `result.stdout` and `result.stderr` separately.
 
 Tests:
-- [ ] `users skills list me` writes an array whose element equals the exact
+- [x] `users skills list me` writes an array whose element equals the exact
   expected dict. This pins the output contract.
-- [ ] Parametrized over 403, 404 and 429 (retries used up): exit 4, 5 and 6,
+- [x] Parametrized over 403, 404 and 429 (retries used up): exit 4, 5 and 6,
   an empty stdout, and the exact error envelope on stderr.
-- [ ] **Review focus 1:** with no credentials, exit 3 and a valid JSON
+- [x] **Review focus 1:** with no credentials, exit 3 and a valid JSON
   `AuthError` on stderr.
-- [ ] `users get Fredrik` gives exit 2 and makes no request.
-- [ ] Commit: "Add the CLI with whoami and users commands".
+- [x] `users get Fredrik` gives exit 2, the exact `UsageError` envelope on
+  stderr, and makes no request.
+- [x] Commit: "Add the CLI with whoami and users commands".
 
 ### Task 11: CLI teams, keywords and schema
 
@@ -463,7 +467,10 @@ Tests:
 - `teams skills <id>`, which calls `ops.team_skills`. Progress lines go to
   stderr only when `sys.stderr.isatty()`. It exits 0 even when members are
   skipped.
-- `keywords search <term>`. An empty term gives `BadParameter`, exit 2.
+- `keywords search <term>`. An empty term gives `BadParameter`, exit 2. Check
+  the term **before** `run()`, in a small helper like `user_ref()`: `run()`
+  catches only `CinodeError`, so a `ValueError` raised inside it surfaces as
+  a bug (a traceback, exit 1), not as a usage error.
 - `schema [model]`. With no argument it writes a sorted JSON array of names;
   with a name it writes `model_json_schema(mode="serialization")`.
   - Names: `skill`, `keyword`, `user`, `user-summary`, `team`, `team-member`,
