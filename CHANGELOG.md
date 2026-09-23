@@ -5,7 +5,7 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
-## 0.1.0
+## 0.1.0 — 2026-09-23
 
 The first release: a read-only library and CLI for Cinode skills, and the
 users, teams and keywords needed to reach them.
