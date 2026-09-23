@@ -1,0 +1,14 @@
+# Environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+dist/
+.env
+
+# Personnel data: never commit output from the API
+data/
+*.csv
+*.json
