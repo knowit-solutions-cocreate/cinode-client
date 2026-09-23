@@ -119,10 +119,12 @@ for CI to check.
 - `CinodeError(message, *, status=None, path=None, correlation_id=None)` with
   `.to_dict() -> {"type", "status", "path", "message", "correlation_id"}`.
 - Its subclasses:
-  - `AuthError`, `ForbiddenError`, `NotFoundError`, `RateLimitedError`,
-    `ServerError`, `UnexpectedResponseError`
+  - `AuthError`, `ForbiddenError`, `NotFoundError`, `ServerError`,
+    `UnexpectedResponseError`
   - `BadRequestError(..., field_errors: dict[str, list[str]])`, which adds
     `field_errors` to `to_dict()`
+  - `RateLimitedError(..., retry_after: float | None = None)`, which adds
+    `retry_after` to `to_dict()` (added in Task 4)
 - `FORBIDDEN_HINT`, a message explaining the owner-context model.
 - `Settings(basic, base_url=DEFAULT_BASE_URL, timeout=30.0)`: a frozen
   dataclass, with `basic` hidden from `repr`. Two constructors:
