@@ -7,7 +7,7 @@ from typer._click.core import Context
 from typer._click.exceptions import NoArgsIsHelpError, UsageError
 from typer.core import TyperGroup
 
-from cinode.cli import users
+from cinode.cli import keywords, schema, teams, users
 from cinode.cli._output import JsonlOption, RawOption, run, usage_failure
 
 
@@ -48,6 +48,9 @@ app = typer.Typer(
     rich_markup_mode=None,
 )
 app.add_typer(users.app, name="users")
+app.add_typer(teams.app, name="teams")
+app.add_typer(keywords.app, name="keywords")
+app.command("schema")(schema.schema)
 
 
 @app.command()

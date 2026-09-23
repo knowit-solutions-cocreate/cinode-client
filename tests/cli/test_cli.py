@@ -4,7 +4,7 @@ from collections.abc import Callable
 import httpx
 import pytest
 import respx
-from support import skill_payload
+from support import TEAM_ID, member_payload, skill_payload, team_payload, user_payload
 from typer.testing import Result
 
 from cinode.errors import FORBIDDEN_HINT
@@ -104,3 +104,29 @@ def test_a_user_that_is_not_an_id_is_a_usage_error(cli: Cli, cli_api: respx.Mock
         }
     }
     assert not cli_api.calls
+
+
+def test_teams_skills_exits_0_and_lists_a_forbidden_member(
+    cli: Cli, cli_api: respx.MockRouter
+) -> None:
+    prefix = "/v0.1/companies/99"
+    members = [
+        member_payload(companyUserId=u, companyUser=user_payload(companyUserId=u, id=u))
+        for u in (1, 2)
+    ]
+    cli_api.get(f"{prefix}/teams/{TEAM_ID}").mock(
+        return_value=httpx.Response(200, json=team_payload())
+    )
+    cli_api.get(f"{prefix}/teams/{TEAM_ID}/members").mock(
+        return_value=httpx.Response(200, json=members)
+    )
+    cli_api.get(f"{prefix}/users/1/skills").mock(
+        return_value=httpx.Response(200, json=[skill_payload(companyUserId=1)])
+    )
+    cli_api.get(f"{prefix}/users/2/skills").mock(return_value=httpx.Response(403))
+    result = cli("teams", "skills", str(TEAM_ID))
+    assert result.exit_code == 0
+    assert result.stderr == ""
+    output = json.loads(result.stdout)
+    assert [m["user"]["id"] for m in output["members"]] == [1]
+    assert [(s["user"]["id"], s["reason"]) for s in output["skipped"]] == [(2, "forbidden")]
