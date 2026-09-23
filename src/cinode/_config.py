@@ -34,7 +34,7 @@ class Settings:
         timeout: float = DEFAULT_TIMEOUT,
     ) -> Self:
         basic = base64.b64encode(f"{access_id}:{access_secret}".encode()).decode("ascii")
-        return cls(basic=basic, base_url=base_url, timeout=timeout)
+        return cls(basic=basic, base_url=base_url.rstrip("/"), timeout=timeout)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Self:
@@ -44,7 +44,7 @@ class Settings:
         Setting only one of the pair is an error, even when `CINODE_BASIC` is set.
         """
         env = os.environ if env is None else env
-        base_url = env.get("CINODE_BASE_URL") or DEFAULT_BASE_URL
+        base_url = (env.get("CINODE_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
         timeout = _timeout(env.get("CINODE_TIMEOUT"))
 
         access_id = env.get("CINODE_ACCESS_ID")
