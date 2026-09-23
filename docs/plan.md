@@ -377,15 +377,18 @@ Tests:
   - `team_id` is checked with the shared `require_id(team_id, "team_id")` from
     `resources/_base.py`, and every method is one call to `self._one` or
     `self._list`, as in `resources/users.py`.
-- `Keywords.search(term)`: strips the term, raises `ValueError` if it is empty,
-  and encodes it with `quote(term, safe="")`.
+- `Keywords.search(term)`: raises `ValueError` if the term is not a `str`,
+  strips it, raises `ValueError` if it is then empty or made only of dots, and
+  encodes it with `quote(term, safe="")`.
 - Both are wired in as `Cinode.teams` and `Cinode.keywords`.
 
 Tests:
-- [ ] **Review focus 4:** parametrized over `C#`, `CI/CD`, `Språk` and
+- [x] **Review focus 4:** parametrized over `C#`, `CI/CD`, `Språk` and
   `machine learning`; each arrives as one segment. Assert on
   `api.calls.last.request.url.raw_path`.
-- [ ] Commit: "Add the teams and keywords resources".
+- [x] Rejected terms, parametrized over `""`, `"  "`, `"."`, `".."`, `123`,
+  `None` and `b"C#"`: each raises `ValueError` and no request is made.
+- [x] Commit: "Add the teams and keywords resources".
 
 ### Task 9: `ops.team_skills`
 
