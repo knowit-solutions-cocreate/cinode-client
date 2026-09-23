@@ -26,15 +26,18 @@ class RateLimiter:
         self._window = window
         self._clock = clock
         self._sleep = sleep
+        # Each entry is the time a call leaves the window (its deadline). The
+        # expiry check and the sleep length both compare against it directly, so
+        # float rounding cannot make them disagree.
         self._calls: deque[float] = deque()
 
     def acquire(self) -> None:
         """Take a slot, sleeping first until the oldest call leaves the window if none is free."""
         while True:
             now = self._clock()
-            while self._calls and now - self._calls[0] >= self._window:
+            while self._calls and self._calls[0] <= now:
                 self._calls.popleft()
             if len(self._calls) < self._limit:
-                self._calls.append(now)
+                self._calls.append(now + self._window)
                 return
-            self._sleep(self._calls[0] + self._window - now)
+            self._sleep(self._calls[0] - now)
