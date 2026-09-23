@@ -270,11 +270,11 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     are `@computed_field`s.
 
 Tests:
-- [ ] A real-shaped payload maps to the expected `model_dump(mode="json")`,
+- [x] A real-shaped payload maps to the expected `model_dump(mode="json")`,
   checked as one exact dict. It includes `level: 0` → `None`,
   `is_rated: False`, null `numberOfDaysWorkExperience` → 0, and an extra field
   that is absent from the dump but present in `.raw`.
-- [ ] Commit: "Add the model base, skills and keywords".
+- [x] Commit: "Add the model base, skills and keywords".
 
 ### Task 6: Users, teams and identity models
 

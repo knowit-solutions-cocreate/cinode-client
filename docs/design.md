@@ -210,7 +210,9 @@ Pydantic v2 models with a shared base:
 
 ```python
 class CinodeModel(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(
+        frozen=True, extra="ignore", validate_by_name=True, validate_by_alias=True
+    )
 ```
 
 - **Our field names, not Cinode's.** Models are snake_case and use domain names

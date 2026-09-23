@@ -35,3 +35,35 @@ class FakeClock:
             raise ValueError("sleep length must be non-negative")
         self.sleeps.append(seconds)
         self.t += seconds
+
+
+def keyword_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic keyword shaped like Cinode's `KeywordModel`."""
+    payload: dict[str, object] = {
+        "id": 22070,
+        "type": 1,
+        "masterSynonymId": 2930,
+        "masterSynonym": "Python",
+        "synonyms": ["Python 3"],
+        "universal": True,
+        "verified": True,
+    }
+    return payload | overrides
+
+
+def skill_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic skill shaped like Cinode's `CompanyUserSkillModel`."""
+    payload: dict[str, object] = {
+        "companyId": COMPANY_ID,
+        "companyUserId": USER_ID,
+        "numberOfDaysWorkExperience": 1461,
+        "profileId": 5005,
+        "id": 22070,
+        "level": 4,
+        "levelGoal": 5,
+        "levelGoalDeadline": "2027-06-30T00:00:00",
+        "keyword": keyword_payload(),
+        "favourite": True,
+        "links": [],
+    }
+    return payload | overrides
