@@ -6,6 +6,7 @@ import json
 BASE_URL = "https://api.test"
 USER_ID = 1001
 COMPANY_ID = 99
+TEAM_ID = 9001
 
 
 def make_jwt(
@@ -64,6 +65,46 @@ def skill_payload(**overrides: object) -> dict[str, object]:
         "levelGoalDeadline": "2027-06-30T00:00:00",
         "keyword": keyword_payload(),
         "favourite": True,
+        "links": [],
+    }
+    return payload | overrides
+
+
+def user_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic user shaped like Cinode's `CompanyUserBaseModel`."""
+    payload: dict[str, object] = {
+        "companyUserId": USER_ID,
+        "companyId": COMPANY_ID,
+        "seoId": "ada-example",
+        "firstName": "Ada",
+        "lastName": "Example",
+        "companyUserType": 0,
+        "id": USER_ID,
+        "links": [],
+    }
+    return payload | overrides
+
+
+def team_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic team shaped like Cinode's `TeamModel`."""
+    payload: dict[str, object] = {
+        "id": TEAM_ID,
+        "companyId": COMPANY_ID,
+        "name": "Example Team",
+        "description": None,
+        "parentTeamId": None,
+        "links": [],
+    }
+    return payload | overrides
+
+
+def member_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic team member shaped like Cinode's `TeamMemberModel`."""
+    payload: dict[str, object] = {
+        "teamId": TEAM_ID,
+        "companyUserId": USER_ID,
+        "companyUser": user_payload(),
+        "availabilityPercent": 100,
         "links": [],
     }
     return payload | overrides

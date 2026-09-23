@@ -253,13 +253,14 @@ model does not pass it through. `is_rated` is a computed boolean.
 
 - `Keyword`: `id`, `name` (`masterSynonym`), `synonym_id`, `type`,
   `synonyms: list[str]`, `verified`.
-- `UserSummary`: `id` (`companyUserId`), `first_name`, `last_name`,
+- `UserSummary`: `id` (`companyUserId`, else `id`), `first_name`, `last_name`,
   `full_name` (computed), `seo_id`, `user_type` (`companyUserType`).
-- `User(UserSummary)`: adds `title`, `email`, `location`, `status`,
-  `employment_start`. More fields can be added without breaking anything.
+- `User(UserSummary)`: adds `title`, `email` (`companyUserEmail`), `location`
+  (`locationName`), `status`, `employment_start` (`employmentStartDate`). More
+  fields can be added without breaking anything.
 - `Team`: `id`, `name`, `description`, `parent_team_id`.
-- `TeamMember`: `team_id`, `user: UserSummary` (from `companyUser`),
-  `availability_percent`.
+- `TeamMember`: `user_id` (`companyUserId`, else `companyUser`'s id), `team_id`,
+  `user: UserSummary | None` (from `companyUser`), `availability_percent`.
 - `WhoAmI`: `company_id`, `user_id`.
 
 ## Transport
