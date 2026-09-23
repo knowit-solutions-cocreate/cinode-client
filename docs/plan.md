@@ -382,10 +382,10 @@ Tests:
 - Both are wired in as `Cinode.teams` and `Cinode.keywords`.
 
 Tests:
-- [ ] **Review focus 4:** parametrized over `C#`, `CI/CD`, `Språk` and
+- [x] **Review focus 4:** parametrized over `C#`, `CI/CD`, `Språk` and
   `machine learning`; each arrives as one segment. Assert on
   `api.calls.last.request.url.raw_path`.
-- [ ] Commit: "Add the teams and keywords resources".
+- [x] Commit: "Add the teams and keywords resources".
 
 ### Task 9: `ops.team_skills`
 

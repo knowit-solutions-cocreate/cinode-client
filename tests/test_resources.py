@@ -31,3 +31,24 @@ def test_a_bad_user_ref_raises_before_any_request(
     with pytest.raises(ValueError):
         client.users.skills.list(ref)  # pyright: ignore[reportArgumentType]
     assert not api.calls
+
+
+@pytest.mark.parametrize(
+    ("term", "segment"),
+    [
+        ("C#", "C%23"),
+        ("CI/CD", "CI%2FCD"),
+        ("Språk", "Spr%C3%A5k"),
+        ("machine learning", "machine%20learning"),
+    ],
+)
+def test_a_keyword_term_is_sent_as_one_segment(
+    client: Cinode, api: respx.MockRouter, term: str, segment: str
+) -> None:
+    api.get(url__regex=r"/v0\.1/companies/99/keywords/search/").mock(
+        return_value=httpx.Response(200, json=[])
+    )
+    assert client.keywords.search(f" {term} ") == []
+    assert api.calls.last.request.url.raw_path == (
+        f"/v0.1/companies/99/keywords/search/{segment}".encode()
+    )

@@ -8,6 +8,8 @@ from cinode._config import DEFAULT_BASE_URL, DEFAULT_TIMEOUT, Settings
 from cinode._transport import Transport
 from cinode.models import WhoAmI
 from cinode.resources._base import Context
+from cinode.resources.keywords import Keywords
+from cinode.resources.teams import Teams
 from cinode.resources.users import Users
 
 WHOAMI_PATH = "/_whoami"
@@ -17,6 +19,8 @@ class Cinode:
     """A read-only Cinode client. Use it as a context manager, or call `close()`."""
 
     users: Users
+    teams: Teams
+    keywords: Keywords
 
     def __init__(
         self,
@@ -47,6 +51,8 @@ class Cinode:
         self._transport = transport
         self._ctx = Context(transport)
         self.users = Users(self._ctx)
+        self.teams = Teams(self._ctx)
+        self.keywords = Keywords(self._ctx)
 
     @property
     def company_id(self) -> int:
