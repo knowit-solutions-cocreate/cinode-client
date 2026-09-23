@@ -110,6 +110,10 @@ here right away, in a small docs PR.
 - **Carry context forward.** The orchestrator's prompt to each implementer
   names the merged tasks, the patterns they established (helpers, validators,
   guards) and any follow-up a review left for this task.
+- **Every agent starts in its own worktree, reviewers included.** Twice a
+  reviewer whose working directory was the main checkout moved its `HEAD` by
+  accident. The orchestrator starts reviewers with worktree isolation too, so
+  a slip lands in a throwaway worktree.
 - **Leave nothing running.** Agents stop every process they start before
   replying. `ls` may be aliased to something slow, so they use `command ls`.
 - **Keep shared space clean.** Agents name scratch files and worktrees
@@ -144,8 +148,8 @@ task number, PR number or findings as needed.
 This is the main session. It plans, delegates, triages and merges. **It does
 not write product code.**
 
-- Starts every implementer and fixer in its own worktree (the Agent tool's
-  worktree isolation).
+- Starts every agent (implementers, fixers and reviewers) in its own worktree,
+  using the Agent tool's worktree isolation.
 - Triage has two parts:
   - Accept a finding when the design or plan backs it, or when it is a real
     defect.
