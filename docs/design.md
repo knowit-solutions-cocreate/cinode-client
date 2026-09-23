@@ -114,7 +114,7 @@ src/cinode/
     skills.py          Skill, Keyword
     teams.py           Team, TeamMember
   resources/
-    _base.py           Resource base, UserRef resolution
+    _base.py           Resource base, UserRef resolution, id checks
     users.py           Users, UserSkills, UserTeams
     teams.py           Teams, TeamMembers
     keywords.py        Keywords
@@ -158,7 +158,15 @@ team_skills(c, team_id)                   # -> TeamSkills
 ```
 
 Wherever a user is expected, the argument is a `UserRef = int | Literal["me"]`,
-and `"me"` resolves to the token's `sub`.
+and `"me"` resolves to the token's `sub`. `UserRef` is a plain `TypeAlias`, so
+`typing.get_args(UserRef)` gives `(int, Literal["me"])`.
+
+Ids are checked before any request, because callers such as an MCP server pass
+values an agent supplied, and type hints do nothing at run time. A user ref must
+be exactly `"me"` or a positive `int` that is not a `bool`; digit strings such
+as `"158773"` are rejected, and the CLI converts its arguments before calling.
+Every other id (`keyword_id`, `team_id`) must be a positive `int` that is not a
+`bool`. Anything else raises `ValueError`.
 
 `Cinode` is a context manager and owns its `httpx.Client`:
 `with Cinode.from_env() as c: ...`.
@@ -166,7 +174,9 @@ and `"me"` resolves to the token's `sub`.
 ### Resources
 
 The resources mirror the URL tree. A `Resource` holds the transport and the
-company id and builds paths below `companies/{cid}/`. A sub-resource is an
+company id and builds paths below `companies/{cid}/`. It reads the company id
+and `"me"` from the token through the transport, so even the first token fetch
+is retried and mapped like any other request. A sub-resource is an
 attribute of its parent (`Users.skills` is a `UserSkills`), and it takes the
 parent's id as its first argument. The client stays stateless, and every
 method is a complete, self-describing call.
@@ -265,10 +275,11 @@ model does not pass it through. `is_rated` is a computed boolean.
 
 ## Transport
 
-`Transport.get(path, *, versioned=True) -> Any` is the only way to reach the
-network. Paths go under `/v0.1/`, or under `/` with `versioned=False` (for
-`/_whoami`). It has no `post`, `put` or `request`. The CLI and resources go through
-it, and a test asserts that `httpx` never sees any method other than GET.
+`Transport.get(path, *, versioned=True) -> Any` and `Transport.token()` are the
+only ways to reach the network, and both issue only GET. Paths go under
+`/v0.1/`, or under `/` with `versioned=False` (for `/_whoami`). There is no
+`post`, `put` or `request`. The CLI and resources go through them, and a test
+asserts that `httpx` never sees any method other than GET.
 
 **Tokens.** `TokenManager` exchanges credentials, decodes the JWT payload
 (base64 only; the signature is not verified, since the claims are used only for

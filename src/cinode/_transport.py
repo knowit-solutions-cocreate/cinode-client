@@ -3,11 +3,12 @@
 import random
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, NoReturn, cast
 
 import httpx
 
-from cinode._auth import TOKEN_PATH, TokenManager
+from cinode._auth import TOKEN_PATH, Token, TokenManager
 from cinode._config import Settings
 from cinode._ratelimit import RateLimiter, retry_after
 from cinode._version import __version__
@@ -29,6 +30,14 @@ RATE_LIMIT_ATTEMPTS = 5
 SERVER_ATTEMPTS = 3
 RETRY_STATUSES = frozenset({502, 503, 504})
 MAX_BACKOFF = 8.0
+
+
+@dataclass
+class _Attempts:
+    """The failures one call has retried so far."""
+
+    rate_limited: int = 0
+    failed: int = 0
 
 
 class Transport:
@@ -68,15 +77,24 @@ class Transport:
         """Close the underlying HTTP connection pool."""
         self._http.close()
 
+    def token(self) -> Token:
+        """The current token, fetched under the same retries and error mapping as `get()`."""
+        self._check_open(TOKEN_PATH)
+        attempts = _Attempts()
+        while True:
+            try:
+                return self.tokens.get()
+            except (httpx.RequestError, RateLimitedError, ServerError) as exc:
+                self._recover(exc, attempts, TOKEN_PATH)
+
     def get(self, path: str, *, versioned: bool = True) -> Any:
         """GET `path` under `/v0.1/`, or under `/` when `versioned` is False.
 
         Returns the decoded JSON body, or None for an empty body.
         """
         url = (API_PREFIX if versioned else "/") + path.lstrip("/")
-        if self._http.is_closed:
-            raise CinodeError("The transport has been closed.", path=url)
-        rate_limited = failed = 0
+        self._check_open(url)
+        attempts = _Attempts()
         refreshed = False
         while True:
             target = TOKEN_PATH
@@ -85,29 +103,8 @@ class Transport:
                 target = url
                 self._limiter.acquire()
                 response = self._http.get(url, headers={"Authorization": f"Bearer {token.value}"})
-            except httpx.TransportError as exc:
-                failed += 1
-                if failed >= SERVER_ATTEMPTS:
-                    raise CinodeError(
-                        f"Could not reach Cinode: {exc.__class__.__name__}.", path=target
-                    ) from exc
-                self._sleep(self._backoff(failed))
-                continue
-            except httpx.RequestError as exc:
-                raise CinodeError(
-                    f"The request to Cinode failed: {exc.__class__.__name__}.", path=target
-                ) from exc
-            except RateLimitedError as exc:
-                rate_limited += 1
-                if rate_limited >= RATE_LIMIT_ATTEMPTS:
-                    raise
-                self._sleep(exc.retry_after or self._backoff(rate_limited))
-                continue
-            except ServerError as exc:
-                failed += 1
-                if exc.status not in RETRY_STATUSES or failed >= SERVER_ATTEMPTS:
-                    raise
-                self._sleep(self._backoff(failed))
+            except (httpx.RequestError, RateLimitedError, ServerError) as exc:
+                self._recover(exc, attempts, target)
                 continue
 
             status = response.status_code
@@ -116,21 +113,54 @@ class Transport:
                 self.tokens.invalidate()
                 continue
             if status == 429:
-                rate_limited += 1
-                if rate_limited < RATE_LIMIT_ATTEMPTS:
+                attempts.rate_limited += 1
+                if attempts.rate_limited < RATE_LIMIT_ATTEMPTS:
                     self._sleep(
                         retry_after(response.headers.get("Retry-After"))
-                        or self._backoff(rate_limited)
+                        or self._backoff(attempts.rate_limited)
                     )
                     continue
             elif status in RETRY_STATUSES:
-                failed += 1
-                if failed < SERVER_ATTEMPTS:
-                    self._sleep(self._backoff(failed))
+                attempts.failed += 1
+                if attempts.failed < SERVER_ATTEMPTS:
+                    self._sleep(self._backoff(attempts.failed))
                     continue
             if not response.is_success:
                 _raise_for_status(response, url)
             return _json(response, url)
+
+    def _check_open(self, path: str) -> None:
+        if self._http.is_closed:
+            raise CinodeError("The transport has been closed.", path=path)
+
+    def _recover(
+        self,
+        exc: httpx.RequestError | RateLimitedError | ServerError,
+        attempts: _Attempts,
+        target: str,
+    ) -> None:
+        """Sleep before the next attempt after `exc`, or raise if it is not to be retried."""
+        if isinstance(exc, httpx.TransportError):
+            attempts.failed += 1
+            if attempts.failed >= SERVER_ATTEMPTS:
+                raise CinodeError(
+                    f"Could not reach Cinode: {exc.__class__.__name__}.", path=target
+                ) from exc
+            self._sleep(self._backoff(attempts.failed))
+        elif isinstance(exc, httpx.RequestError):
+            raise CinodeError(
+                f"The request to Cinode failed: {exc.__class__.__name__}.", path=target
+            ) from exc
+        elif isinstance(exc, RateLimitedError):
+            attempts.rate_limited += 1
+            if attempts.rate_limited >= RATE_LIMIT_ATTEMPTS:
+                raise exc
+            self._sleep(exc.retry_after or self._backoff(attempts.rate_limited))
+        else:
+            attempts.failed += 1
+            if exc.status not in RETRY_STATUSES or attempts.failed >= SERVER_ATTEMPTS:
+                raise exc
+            self._sleep(self._backoff(attempts.failed))
 
     def _backoff(self, attempt: int) -> float:
         """Exponential backoff for the `attempt`-th failure (from 1), with jitter."""
