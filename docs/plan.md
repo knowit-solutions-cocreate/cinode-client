@@ -316,18 +316,34 @@ Tests:
 
 **Files:** `src/cinode/resources/_base.py`, `resources/users.py`,
 `resources/__init__.py`, `src/cinode/_client.py`, `src/cinode/__init__.py`,
-`tests/conftest.py` (fixture `client`), `tests/test_resources.py`,
+`src/cinode/_transport.py` (`token()`), `tests/conftest.py` (fixture
+`client`), `tests/test_resources.py`,
 `tests/test_client.py`.
 
 **Produces:**
-- `UserRef = int | Literal["me"]`.
+- `UserRef: TypeAlias = int | Literal["me"]` (a plain alias, not a `type`
+  statement, so `typing.get_args` sees the union).
+- `Transport.token() -> Token`: the token, fetched under the same retries,
+  error mapping and closed check as `.get()`. Resources read the token only
+  through it.
+- `require_id(value, name) -> int` in `resources/_base.py`: the one shared id
+  guard. It returns `value` if it is a positive `int` that is not a `bool`, and
+  raises `ValueError` otherwise.
 - `Context(transport)`:
   - `.company_id`, taken from the token.
-  - `.user_id(ref) -> int`, where `"me"` gives the token's user id.
-  - `.get(path)`, which prefixes `companies/{cid}/`.
-- `Resource(ctx)`.
+  - `.user_id(ref) -> int`, where `"me"` gives the token's user id. Anything
+    other than exactly `"me"` or a positive non-bool `int` raises `ValueError`
+    before any request; digit strings are rejected.
+  - `.get(path) -> tuple[Any, str]`, which prefixes `companies/{cid}/` and
+    returns the body and the full request path, for errors.
+- `Resource(ctx)`, with `._one(Model, path) -> Model` and
+  `._list(Model, path) -> list[Model]`, which GET a path below
+  `companies/{cid}/` and parse it. Every resource method is one call to them.
 - `Users` with `.list()`, `.get(user)`, and `.skills: UserSkills` (`.list(user)`,
   `.get(user, keyword_id)`) and `.teams: UserTeams` (`.list(user)`).
+  `keyword_id` is checked with `require_id`.
+- `cinode.resources` exports only `UserRef`; `Context`, `Resource` and the
+  resource classes are internal.
 - `Cinode`:
   - Constructors: `Cinode(access_id, access_secret, *, base_url, timeout)`,
     `Cinode.from_env(env=None)`, and the private
@@ -344,6 +360,10 @@ Tests:
 - [x] `users.skills.list("me")` requests `/v0.1/companies/99/users/1001/skills`,
   with the company and user ids taken from the token.
 - [x] `whoami()` calls `/_whoami`, without the `/v0.1` prefix.
+- [x] A first `/token` that returns 503 is retried, and `users.list()` still
+  succeeds (added in review).
+- [x] A bad user ref (`True`, `0`, `-5`, `"158773"`, `"../../teams"`) raises
+  `ValueError` before any request (added in review).
 - [x] Commit: "Add the client and the users resources".
 
 ### Task 8: Teams and keywords
@@ -354,6 +374,9 @@ Tests:
 **Produces:**
 - `Teams` with `.list()`, `.get(team_id)` and `.members: TeamMembers`
   (`.list(team_id)`).
+  - `team_id` is checked with the shared `require_id(team_id, "team_id")` from
+    `resources/_base.py`, and every method is one call to `self._one` or
+    `self._list`, as in `resources/users.py`.
 - `Keywords.search(term)`: strips the term, raises `ValueError` if it is empty,
   and encodes it with `quote(term, safe="")`.
 - Both are wired in as `Cinode.teams` and `Cinode.keywords`.
