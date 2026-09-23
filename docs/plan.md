@@ -341,10 +341,10 @@ Tests:
 scope `list` would otherwise resolve to the method.
 
 Tests:
-- [ ] `users.skills.list("me")` requests `/v0.1/companies/99/users/1001/skills`,
+- [x] `users.skills.list("me")` requests `/v0.1/companies/99/users/1001/skills`,
   with the company and user ids taken from the token.
-- [ ] `whoami()` calls `/_whoami`, without the `/v0.1` prefix.
-- [ ] Commit: "Add the client and the users resources".
+- [x] `whoami()` calls `/_whoami`, without the `/v0.1` prefix.
+- [x] Commit: "Add the client and the users resources".
 
 ### Task 8: Teams and keywords
 

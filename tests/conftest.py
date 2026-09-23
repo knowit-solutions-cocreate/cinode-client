@@ -5,6 +5,7 @@ import pytest
 import respx
 from support import BASE_URL, FakeClock, make_jwt
 
+from cinode._client import Cinode
 from cinode._config import Settings
 from cinode._transport import Transport
 
@@ -38,3 +39,9 @@ def transport(settings: Settings, clock: FakeClock, api: respx.MockRouter) -> It
     transport = Transport(settings, clock=clock, sleep=clock.sleep, now=clock, rng=lambda: 1.0)
     yield transport
     transport.close()
+
+
+@pytest.fixture
+def client(transport: Transport) -> Cinode:
+    """A `Cinode` over the `transport` fixture, which closes it."""
+    return Cinode._with_transport(transport)  # pyright: ignore[reportPrivateUsage]
