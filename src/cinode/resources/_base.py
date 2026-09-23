@@ -1,11 +1,11 @@
 """The base every resource shares: the transport, the company id, id checks and `me`."""
 
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 
 from cinode._transport import API_PREFIX, Transport
 from cinode.models import CinodeModel
 
-type UserRef = int | Literal["me"]
+UserRef: TypeAlias = int | Literal["me"]  # noqa: UP040 - `typing.get_args` must see the union
 """A user id, or `"me"` for the user who owns the API account."""
 
 

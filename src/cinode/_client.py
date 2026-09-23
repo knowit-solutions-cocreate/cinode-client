@@ -7,7 +7,8 @@ from typing import Self
 from cinode._config import DEFAULT_BASE_URL, DEFAULT_TIMEOUT, Settings
 from cinode._transport import Transport
 from cinode.models import WhoAmI
-from cinode.resources import Context, Users
+from cinode.resources._base import Context
+from cinode.resources.users import Users
 
 WHOAMI_PATH = "/_whoami"
 
