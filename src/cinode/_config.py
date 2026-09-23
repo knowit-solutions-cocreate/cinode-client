@@ -1,6 +1,7 @@
 """Credentials and settings, from arguments or the environment."""
 
 import base64
+import math
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -74,6 +75,9 @@ def _timeout(value: str | None) -> float:
     if not value:
         return DEFAULT_TIMEOUT
     try:
-        return float(value)
+        timeout = float(value)
     except ValueError:
-        raise CinodeError(f"CINODE_TIMEOUT must be a number of seconds, not {value!r}.") from None
+        timeout = math.nan
+    if not (math.isfinite(timeout) and timeout > 0):
+        raise CinodeError(f"CINODE_TIMEOUT must be a positive number of seconds, not {value!r}.")
+    return timeout
