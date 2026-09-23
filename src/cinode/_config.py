@@ -40,6 +40,7 @@ class Settings:
         """Read settings from `env`, or from `os.environ` when it is None.
 
         `CINODE_ACCESS_ID` and `CINODE_ACCESS_SECRET` win over `CINODE_BASIC`.
+        Setting only one of the pair is an error, even when `CINODE_BASIC` is set.
         """
         env = os.environ if env is None else env
         base_url = env.get("CINODE_BASE_URL") or DEFAULT_BASE_URL
@@ -50,6 +51,11 @@ class Settings:
         if access_id and access_secret:
             return cls.from_credentials(
                 access_id, access_secret, base_url=base_url, timeout=timeout
+            )
+        if access_id or access_secret:
+            missing = "CINODE_ACCESS_SECRET" if access_id else "CINODE_ACCESS_ID"
+            raise AuthError(
+                f"{missing} is not set. Set both CINODE_ACCESS_ID and CINODE_ACCESS_SECRET."
             )
 
         # GNU base64 wraps its output at 76 characters, so a pasted value may

@@ -13,9 +13,17 @@ def test_id_and_secret_win_over_basic() -> None:
     assert settings.basic == base64.b64encode(b"id:secret").decode()
 
 
-def test_no_credentials_is_an_auth_error() -> None:
-    with pytest.raises(AuthError):
-        Settings.from_env({})
+@pytest.mark.parametrize(
+    ("env", "match"),
+    [
+        ({}, "No Cinode credentials"),
+        # Half a pair must not fall back to CINODE_BASIC, which may be another account.
+        ({"CINODE_ACCESS_ID": "id", "CINODE_BASIC": "b3RoZXI="}, "CINODE_ACCESS_SECRET"),
+    ],
+)
+def test_missing_credentials_is_an_auth_error(env: dict[str, str], match: str) -> None:
+    with pytest.raises(AuthError, match=match):
+        Settings.from_env(env)
 
 
 def test_whitespace_is_stripped_from_basic() -> None:
