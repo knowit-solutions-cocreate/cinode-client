@@ -51,7 +51,7 @@ class CinodeModel(BaseModel):
             return cls.model_validate(data)
         except ValidationError as exc:
             raise UnexpectedResponseError(
-                f"The response did not fit {cls.__name__}: {exc}", path=path
+                f"The response did not fit {cls.__name__}: {_describe(exc)}", path=path
             ) from exc
 
     @classmethod
@@ -61,4 +61,22 @@ class CinodeModel(BaseModel):
             raise UnexpectedResponseError(
                 f"Expected a list of {cls.__name__}, got {type(data).__name__}.", path=path
             )
-        return [cls.parse(item, path=path) for item in cast("list[Any]", data)]
+        models: list[Self] = []
+        for i, item in enumerate(cast("list[Any]", data)):
+            try:
+                models.append(cls.model_validate(item))
+            except ValidationError as exc:
+                raise UnexpectedResponseError(
+                    f"Item {i} of the response did not fit {cls.__name__}: {_describe(exc)}",
+                    path=path,
+                ) from exc
+        return models
+
+
+def _describe(exc: ValidationError) -> str:
+    """Each error's location and message, leaving out the input, which may hold personal data."""
+    errors = exc.errors(include_url=False, include_input=False, include_context=False)
+    return "; ".join(
+        f"{'.'.join(str(part) for part in error['loc']) or '(root)'}: {error['msg']}"
+        for error in errors
+    )

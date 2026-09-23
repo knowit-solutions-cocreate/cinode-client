@@ -260,7 +260,9 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     equal when their fields are.
   - `.parse(data, *, path=None) -> Self` and `.parse_list(...) -> list[Self]`
     wrap pydantic's `ValidationError` (and a list input that is not a list)
-    in `UnexpectedResponseError`.
+    in `UnexpectedResponseError`. The message gives each error's location
+    and message, never the input, and `parse_list` names the failing item's
+    index.
 - `Keyword` and `Skill`, with fields as in the design tables.
   - Use `AliasPath("keyword", ...)` for the values nested under `keyword`.
   - `keyword_id` is resolved by a `mode="before"` validator: top-level `id`
