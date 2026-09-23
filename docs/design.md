@@ -405,23 +405,25 @@ levels) is personnel data.
 
 ## Testing
 
-| Layer | How | Runs by default |
-|---|---|---|
-| transport | `respx`-mocked httpx; fake clock | yes |
-| models | synthetic fixtures | yes |
-| resources | `respx`: path building, `me` resolution, parsing | yes |
-| ops | `respx`: 403/404 skipping, progress callback | yes |
-| CLI | typer `CliRunner` + `respx`: JSON shape, stderr envelope, exit codes | yes |
-| acceptance | the real `cinode` binary as a subprocess, live API | `CINODE_LIVE_TESTS=1` |
+Tests are few and deliberate. A test exists when it pins behaviour that the
+design depends on or that has already been shown to go wrong; it is not written
+for coverage. The default run (everything but `live`) finishes in **under two
+seconds**: no real sleeps (clocks are injected) and no network (`respx` stands
+in for Cinode).
 
-**Transport tests** must cover: token caching and expiry, refresh on 401 once
-and then `AuthError`, both limiters' windows, 429 with and without
-`Retry-After`, 5xx retry, the error mapping with correlation ids, and GET-only.
+What earns a unit test:
 
-**Model tests** must cover: `level: 0` becomes `None`; null `levelGoal` and
-`numberOfDaysWorkExperience`; a large list (373 skills); a team with a
-`parentTeamId`; an unknown enum value; unknown extra fields ignored but kept in
-`.raw`.
+- **Transport:** refresh-once on 401, 429 and 5xx retries, status-to-error
+  mapping, bodies that are not JSON, GET-only.
+- **Tokens:** caching, refresh near expiry, local-clock lifetime.
+- **Models:** the mapping of a real-shaped skill payload, including
+  `level: 0` → `None`, and `TeamMember`'s user id resolution.
+- **Resources and ops:** `me` resolution, keyword encoding, 403/404 skipping in
+  `team_skills`.
+- **CLI:** the exact JSON output shape, the error envelope and the exit codes.
+
+Everything else is covered by the live acceptance suite, which exercises the
+whole stack.
 
 ### Acceptance: the CLI drives the live API
 

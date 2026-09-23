@@ -1,9 +1,9 @@
 # cinode-client — plan
 
 > **For agentic workers:** use superpowers:subagent-driven-development or
-> superpowers:executing-plans to carry out the tasks in order. Each task is
-> test-first: write the listed tests, see them fail, implement, see them pass,
-> run the checks, commit. Steps use checkboxes for tracking.
+> superpowers:executing-plans to carry out the tasks in order. Write only the
+> tests a task lists; they pin behaviour the design depends on. Do not add
+> tests for coverage. Steps use checkboxes for tracking.
 
 **Goal:** v0.1 of a read-only Cinode library and a CLI over it, covering skills.
 
@@ -43,8 +43,10 @@ Each later version gets its own plan, written when it starts.
 - Every commit passes `uv run pytest`, `uv run ruff check`,
   `uv run ruff format --check` and `uv run pyright` (strict, on `src/`).
 - Commit messages are plain imperative sentences, with no prefixes and no emoji.
-- Tests never sleep for real and never touch the network, except those marked
-  `live`.
+- The default test run (everything except `live`) finishes in **under two
+  seconds**. Tests never sleep for real and never touch the network, except
+  those marked `live`.
+- Few tests: only those listed per task. Parametrize instead of repeating.
 
 ## Review focus
 
@@ -52,18 +54,18 @@ Failure modes the spec implies but does not spell out. Each one has a test in
 the task named.
 
 1. **No credentials when an agent runs the CLI.** Expect a JSON error on
-   stderr, exit 3, no traceback. *(Task 11)*
+   stderr, exit 3, no traceback. *(Task 10)*
 2. **`CINODE_BASIC` with whitespace inside it.** GNU `base64` wraps output at 76
-   characters. Strip all whitespace from the value. *(Task 2)*
+   characters. Strip all whitespace from the value. *(Task 1)*
 3. **Local clock out of step with Cinode's.** Count the token's lifetime from
    when it arrives, on the local clock, so tokens are not refetched on every
-   request. *(Task 4)*
+   request. *(Task 3)*
 4. **Keyword terms with URL-special characters** (`C#`, `CI/CD`, `Språk`,
    spaces). Each term must be sent as one percent-encoded path segment.
-   *(Task 9)*
+   *(Task 8)*
 5. **A body that is not JSON** (an HTML page from a proxy, or an empty 200).
    Raise `UnexpectedResponseError`, or `ServerError` for a 5xx, never a raw
-   `JSONDecodeError`. The CLI exits 1 with the error envelope. *(Tasks 5, 11)*
+   `JSONDecodeError`. The CLI exits 1 with the error envelope. *(Tasks 4, 10)*
 
 ## File map
 
@@ -87,11 +89,11 @@ tests/
 
 ---
 
-### Task 1: Scaffold
+### Task 1: Scaffold, errors and configuration
 
 **Files:** `pyproject.toml`, `.gitignore`, `README.md` (a stub for now),
 `CHANGELOG.md`, `src/cinode/__init__.py`, `src/cinode/_version.py`,
-`src/cinode/py.typed`, `tests/test_package.py`.
+`src/cinode/py.typed`, `.github/workflows/ci.yml`.
 
 - [ ] `pyproject.toml` following the global constraints, plus:
   - pytest settings: `testpaths = ["tests"]`, `pythonpath = ["tests"]`,
@@ -104,12 +106,13 @@ tests/
 - [ ] `_version.py` sets `__version__ = importlib.metadata.version("cinode-client")`,
   and `__init__` re-exports it. It lives in its own module so the transport
   can import it without an import cycle.
-- [ ] Test: `cinode.__version__ == "0.1.0"`.
-- [ ] `uv sync`, then run the checks and commit: "Scaffold the cinode-client package".
+- [ ] `.github/workflows/ci.yml`: on pull requests to `main`, set up uv
+  (`astral-sh/setup-uv`), run `uv sync --locked`, then the four checks. No
+  secrets, and no live tests.
 
-### Task 2: Errors and configuration
-
-**Files:** `src/cinode/errors.py`, `src/cinode/_config.py`, `tests/test_config.py`.
+Also in this task, errors and configuration (`src/cinode/errors.py`,
+`src/cinode/_config.py`, `tests/test_config.py`), so the first PR has code
+for CI to check.
 
 **Produces:**
 - `CinodeError(message, *, status=None, path=None, correlation_id=None)` with
@@ -127,19 +130,13 @@ tests/
 - `DEFAULT_BASE_URL = "https://api.cinode.com"` (the root, without `/v0.1`).
 
 Tests:
-- [ ] `from_credentials` base64-encodes `id:secret`, and either value empty
-  gives `AuthError`.
-- [ ] `from_env` prefers `CINODE_ACCESS_ID` and `CINODE_ACCESS_SECRET`
-  (stripped) and falls back to `CINODE_BASIC`.
-- [ ] With neither set, `AuthError`, and the message names both options.
+- [ ] `from_env`: id and secret win over `CINODE_BASIC`; with neither set,
+  `AuthError`.
 - [ ] **Review focus 2:** `CINODE_BASIC="YWJj\nZGVm \n"` becomes `"YWJjZGVm"`.
-- [ ] `CINODE_BASE_URL` overrides the base URL and loses any trailing slash.
-- [ ] `CINODE_TIMEOUT` that is not a number or is ≤ 0 gives `CinodeError`.
-- [ ] `repr(settings)` does not contain the secret.
-- [ ] `BadRequestError.to_dict()` includes `field_errors`.
-- [ ] Commit: "Add errors and configuration".
+- [ ] `uv sync`, run the checks, commit in two chunks ("Scaffold the
+  cinode-client package", "Add errors and configuration").
 
-### Task 3: Rate limiter
+### Task 2: Rate limiter
 
 **Files:** `src/cinode/_ratelimit.py`, `tests/support.py` (`FakeClock`),
 `tests/test_ratelimit.py`.
@@ -152,13 +149,11 @@ Tests:
   `sleep(s)` appends `s` to `sleeps` and advances `t`.
 
 Tests:
-- [ ] `limit` calls in a row do not sleep.
 - [ ] With `(2, 2.0)`: calls at t0 and t0+0.5, then a third call, give
   `sleeps == [1.5]`.
-- [ ] After the window has passed, calls go through again without sleeping.
 - [ ] Commit: "Add a sliding-window rate limiter".
 
-### Task 4: Tokens
+### Task 3: Tokens
 
 **Files:** `src/cinode/_auth.py`, `tests/support.py` (`make_jwt`, constants
 `BASE_URL = "https://api.test"`, `USER_ID = 1001`, `COMPANY_ID = 99`),
@@ -191,20 +186,14 @@ Tests:
   with a named `token` route that returns `make_jwt()`.
 
 Tests:
-- [ ] `decode_token` reads the user and company ids from string claims.
-- [ ] Two calls to `get()` make one request.
-- [ ] Advancing the clock to 91 s after issue triggers a refetch.
-- [ ] `invalidate()` forces a refetch.
-- [ ] The Basic header is sent.
-- [ ] A 401 from `/token` gives `AuthError`.
-- [ ] A token without `exp` or `iat` gets the 120 s lifetime.
-- [ ] Garbage in place of a JWT gives `UnexpectedResponseError`.
-- [ ] Three forced refetches in a row sleep on the token limiter (2 per 2 s).
+- [ ] Two calls to `get()` make one request. Moving the clock to 91 s after
+  issue triggers a refetch.
 - [ ] **Review focus 3:** a token whose `iat` and `exp` are far in the past
   (skewed clocks) is still cached for its full lifetime.
+- [ ] A 401 from `/token` gives `AuthError`.
 - [ ] Commit: "Add token exchange and caching".
 
-### Task 5: Transport
+### Task 4: Transport
 
 **Files:** `src/cinode/_transport.py`, `tests/conftest.py` (fixtures `settings`
 and `transport`), `tests/test_transport.py`.
@@ -241,25 +230,17 @@ and `transport`), `tests/test_transport.py`.
 `rng=lambda: 1.0`, which makes the backoff deterministic: 0.5, 1, 2, 4.
 
 Tests:
-- [ ] It returns the JSON, sends the Bearer header, and uses the `/v0.1/`
-  prefix (none with `versioned=False`).
-- [ ] 401 then 200 succeeds, with two token fetches. 401 twice gives `AuthError`.
-- [ ] 429 with `Retry-After: 3` sleeps `[3.0]`. Five 429s give
-  `RateLimitedError` after sleeping `[0.5, 1, 2, 4]`.
-- [ ] 503 then 200 succeeds. Three 503s give `ServerError`.
-- [ ] `ConnectError` then 200 succeeds. Repeated `ConnectError` gives `ServerError`.
-- [ ] A 403 is not retried and carries the path, `X-Correlation-Id` and the hint.
-- [ ] A 404 gives `NotFoundError`. A 400 with an `errors` body gives
-  `field_errors`.
+- [ ] 401 then 200 succeeds with two token fetches; 401 twice gives `AuthError`.
+- [ ] 429 with `Retry-After: 3` sleeps `[3.0]`; five 429s give
+  `RateLimitedError` after `[0.5, 1, 2, 4]`. Three 503s give `ServerError`.
+- [ ] One parametrized test of the status mapping: 400 (with `field_errors`),
+  403 (with `X-Correlation-Id` and the hint), 404, each raised without retry.
 - [ ] **Review focus 5:** a 200 with an HTML body gives `UnexpectedResponseError`.
-  A 500 with HTML gives `ServerError` with no decoding error. An empty 200
-  returns `None`.
-- [ ] Advancing the clock by 100 s between calls refreshes the token mid-run.
-- [ ] GET-only: every recorded call's method is `GET`, and `Transport` has no
-  write-method attributes.
+- [ ] GET-only: `Transport` has no write-method attributes, and every
+  recorded call is a `GET`.
 - [ ] Commit: "Add the GET-only transport".
 
-### Task 6: Model base, skills and keywords
+### Task 5: Model base, skills and keywords
 
 **Files:** `src/cinode/models/_base.py`, `models/skills.py`,
 `models/__init__.py`, `tests/support.py` (`skill_payload`, `keyword_payload`,
@@ -285,23 +266,13 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     are `@computed_field`s.
 
 Tests:
-- [ ] A full payload maps to the expected field values.
-- [ ] `level: 0` gives `None` and `is_rated is False`; `level: 3` gives
-  `is_rated is True`.
-- [ ] Null `levelGoal`, `levelGoalDeadline` and `numberOfDaysWorkExperience`
-  are handled. A date-time string parses.
-- [ ] `years_experience` for 4242 days is 11.6.
-- [ ] An unknown `keyword.type` (for example 999) parses.
-- [ ] Extra fields are left out of `model_dump()` but kept in `.raw`.
-- [ ] A list of 373 skills parses.
-- [ ] `model_dump(mode="json")` has exactly our snake_case keys, the computed
-  ones included.
-- [ ] Round trip: `Skill.model_validate(skill.model_dump(mode="json")) == skill`.
-- [ ] Missing `id` gives `UnexpectedResponseError` with the path.
-- [ ] Models are frozen.
+- [ ] A real-shaped payload maps to the expected `model_dump(mode="json")`,
+  checked as one exact dict. It includes `level: 0` → `None`,
+  `is_rated: False`, null `numberOfDaysWorkExperience` → 0, and an extra field
+  that is absent from the dump but present in `.raw`.
 - [ ] Commit: "Add the model base, skills and keywords".
 
-### Task 7: Users, teams and identity models
+### Task 6: Users, teams and identity models
 
 **Files:** `models/users.py`, `models/teams.py`, `models/identity.py`,
 `models/__init__.py`, `tests/support.py` (`user_payload`, `team_payload`,
@@ -322,19 +293,12 @@ Tests:
 - `models/__init__` exports all of these, plus `CinodeModel`, `Skill` and `Keyword`.
 
 Tests:
-- [ ] `UserSummary` parses the base payload. `full_name` joins the names and
-  skips a missing one.
-- [ ] `User` parses the extended fields.
-- [ ] A team with `parentTeamId` parses.
-- [ ] A member with `companyUser` inline parses.
-- [ ] A member with only a top-level `companyUserId` gets `user=None` and the
-  right `user_id`.
-- [ ] A member with the top-level id null and the inline one set still gets
-  the id.
-- [ ] `WhoAmI` parses.
+- [ ] Parametrized over three payloads: the member's user id comes from the
+  inline `companyUser`, from a top-level `companyUserId` only (with
+  `user=None`), and from the inline one when the top-level one is null.
 - [ ] Commit: "Add user, team and identity models".
 
-### Task 8: Resources, the client and users
+### Task 7: Resources, the client and users
 
 **Files:** `src/cinode/resources/_base.py`, `resources/users.py`,
 `resources/__init__.py`, `src/cinode/_client.py`, `src/cinode/__init__.py`,
@@ -363,18 +327,12 @@ Tests:
 scope `list` would otherwise resolve to the method.
 
 Tests:
-- [ ] Each method hits the path in the design's table and returns the right
-  model type.
-- [ ] `"me"` resolves to `USER_ID` in the path.
-- [ ] `company_id` comes from the token without any configuration.
+- [ ] `users.skills.list("me")` requests `/v0.1/companies/99/users/1001/skills`,
+  with the company and user ids taken from the token.
 - [ ] `whoami()` calls `/_whoami`, without the `/v0.1` prefix.
-- [ ] Building a `Cinode` makes no network call.
-- [ ] `with Cinode…` closes the httpx client.
-- [ ] A 403 on `users.skills.list(7)` raises `ForbiddenError` with path
-  `/v0.1/companies/99/users/7/skills`.
 - [ ] Commit: "Add the client and the users resources".
 
-### Task 9: Teams and keywords
+### Task 8: Teams and keywords
 
 **Files:** `resources/teams.py`, `resources/keywords.py`, `_client.py`,
 `tests/test_resources.py`.
@@ -387,14 +345,12 @@ Tests:
 - Both are wired in as `Cinode.teams` and `Cinode.keywords`.
 
 Tests:
-- [ ] The paths and model types are right for all four methods.
-- [ ] An empty or whitespace-only term raises `ValueError` without a request.
-- [ ] **Review focus 4:** `C#`, `CI/CD`, `Språk` and `machine learning` each
-  arrive as one segment. Assert on `api.calls.last.request.url.raw_path`, for
-  example `b".../keywords/search/C%23"` and `b".../CI%2FCD"`.
+- [ ] **Review focus 4:** parametrized over `C#`, `CI/CD`, `Språk` and
+  `machine learning`; each arrives as one segment. Assert on
+  `api.calls.last.request.url.raw_path`.
 - [ ] Commit: "Add the teams and keywords resources".
 
-### Task 10: `ops.team_skills`
+### Task 9: `ops.team_skills`
 
 **Files:** `src/cinode/ops/team_skills.py`, `ops/__init__.py`, `tests/test_ops.py`.
 
@@ -411,14 +367,10 @@ Tests:
 Tests:
 - [ ] With members 1, 2 and 3, where 2 returns 403 and 3 returns 404: 1 is in
   `members`, and `skipped` is `[(2, "forbidden"), (3, "not_found")]`.
-- [ ] A persistent 500 on one member raises `ServerError`, ending the run.
-- [ ] `on_progress` is called with `(1, 3, …)`, `(2, 3, …)` and `(3, 3, …)`.
-- [ ] A duplicate member's skills are fetched once.
-- [ ] A member without an inline user is still fetched.
-- [ ] An empty team gives empty lists.
+- [ ] A persistent 500 on one member raises `ServerError`.
 - [ ] Commit: "Add the team_skills operation".
 
-### Task 11: CLI core and users
+### Task 10: CLI core and users
 
 **Files:** `src/cinode/cli/__init__.py`, `cli/_output.py`, `cli/users.py`,
 `tests/cli/conftest.py`, `tests/cli/test_cli.py`.
@@ -450,21 +402,15 @@ and `CINODE_BASE_URL=https://api.test`, unsets `CINODE_ACCESS_*`, and mocks
 
 Tests:
 - [ ] `users skills list me` writes an array whose element equals the exact
-  expected dict (all snake_case keys, the computed ones included). This pins
-  the output contract.
-- [ ] `--jsonl` writes one object per line.
-- [ ] `--raw` writes Cinode's camelCase payload.
-- [ ] `whoami` writes `{"company_id": 99, "user_id": 1001}`.
-- [ ] A 403 gives exit 4, an empty stdout and the exact error envelope on
-  stderr. A 404 gives exit 5 and a 429 (retries used up) gives exit 6.
-- [ ] **Review focus 1:** with no credentials, exit 3, and stderr holds valid
-  JSON with type `AuthError` and no traceback.
+  expected dict. This pins the output contract.
+- [ ] Parametrized over 403, 404 and 429 (retries used up): exit 4, 5 and 6,
+  an empty stdout, and the exact error envelope on stderr.
+- [ ] **Review focus 1:** with no credentials, exit 3 and a valid JSON
+  `AuthError` on stderr.
 - [ ] `users get Fredrik` gives exit 2 and makes no request.
-- [ ] **Review focus 5:** a 200 with an HTML body gives exit 1 and the error
-  envelope.
 - [ ] Commit: "Add the CLI with whoami and users commands".
 
-### Task 12: CLI teams, keywords and schema
+### Task 11: CLI teams, keywords and schema
 
 **Files:** `cli/teams.py`, `cli/keywords.py`, `cli/schema.py`,
 `cli/__init__.py`, `tests/cli/test_cli.py`.
@@ -483,16 +429,11 @@ Tests:
   - An unknown name gives exit 2 with the valid names in the message.
 
 Tests:
-- [ ] `--match cocreate` keeps only the matching teams, ignoring case.
 - [ ] `teams skills` with one member returning 403 gives exit 0, and the
   `skipped` array holds that member.
-- [ ] Under CliRunner (not a TTY), stderr is empty.
-- [ ] `keywords search "C#"` hits the encoded path.
-- [ ] `schema` lists the names. `schema skill` has the properties
-  `is_rated` and `years_experience`. `schema nope` gives exit 2.
 - [ ] Commit: "Add the teams, keywords and schema commands".
 
-### Task 13: Live acceptance suite
+### Task 12: Live acceptance suite
 
 **Files:** `tests/live/conftest.py`, `tests/live/test_acceptance.py`.
 
@@ -527,7 +468,7 @@ Tests: the design's acceptance table, one test per row, plus two more:
   `-m live`. Both must pass against the owner's profile.
 - [ ] Commit: "Add the live acceptance suite".
 
-### Task 14: Parity and documentation
+### Task 13: Parity and documentation
 
 **Files:** `tests/live/test_parity.py`, `README.md`, `CHANGELOG.md`.
 
@@ -554,7 +495,8 @@ rules.
 
 ## Done when
 
-- `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are clean.
+- `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are clean,
+  and the default test run takes under two seconds.
 - `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
   profile, the parity test included.
 - `uv tool install .` gives a working `cinode` on `PATH`.
