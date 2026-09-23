@@ -7,7 +7,7 @@ import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -41,18 +41,42 @@ def decode_token(jwt: str, *, issued_at: float) -> Token:
     on the local clock. That way a local clock out of step with Cinode's does
     not make every token look expired.
     """
+    parts = jwt.split(".")
+    if len(parts) < 2:
+        raise _malformed("it is not a JWT")
+    payload = parts[1]
     try:
-        payload = jwt.split(".")[1]
-        claims: Any = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
-        user_id = int(claims["sub"])
-        company_id = int(claims["companySub"])
-        iat, exp = claims.get("iat"), claims.get("exp")
+        decoded: Any = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    except ValueError, binascii.Error:
+        raise _malformed("its payload is not base64url-encoded JSON") from None
+    if not isinstance(decoded, dict):
+        raise _malformed("its payload is not a JSON object")
+    claims = cast(dict[str, Any], decoded)
+    ids: dict[str, int] = {}
+    for claim in ("sub", "companySub"):
+        if claim not in claims:
+            raise _malformed(f"its payload is missing claim '{claim}'")
+        try:
+            ids[claim] = int(claims[claim])
+        except TypeError, ValueError:
+            raise _malformed(f"claim '{claim}' is not an integer") from None
+    iat, exp = claims.get("iat"), claims.get("exp")
+    try:
         lifetime = float(exp) - float(iat) if iat is not None and exp is not None else None
-    except (IndexError, KeyError, TypeError, ValueError, AttributeError, binascii.Error) as e:
-        raise UnexpectedResponseError(f"Cinode returned a malformed token: {e}") from None
+    except TypeError, ValueError:
+        raise _malformed("claim 'iat' or 'exp' is not a number") from None
     if lifetime is None or not math.isfinite(lifetime) or lifetime <= 0:
         lifetime = DEFAULT_LIFETIME
-    return Token(value=jwt, user_id=user_id, company_id=company_id, expires_at=issued_at + lifetime)
+    return Token(
+        value=jwt,
+        user_id=ids["sub"],
+        company_id=ids["companySub"],
+        expires_at=issued_at + lifetime,
+    )
+
+
+def _malformed(reason: str) -> UnexpectedResponseError:
+    return UnexpectedResponseError(f"Cinode returned a malformed token: {reason}.", path=TOKEN_PATH)
 
 
 class TokenManager:
