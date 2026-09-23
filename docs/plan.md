@@ -150,9 +150,9 @@ Tests:
   `sleep(s)` appends `s` to `sleeps` and advances `t`.
 
 Tests:
-- [ ] With `(2, 2.0)`: calls at t0 and t0+0.5, then a third call, give
+- [x] With `(2, 2.0)`: calls at t0 and t0+0.5, then a third call, give
   `sleeps == [1.5]`.
-- [ ] Commit: "Add a sliding-window rate limiter".
+- [x] Commit: "Add a sliding-window rate limiter".
 
 ### Task 3: Tokens
 
