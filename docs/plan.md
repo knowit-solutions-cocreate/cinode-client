@@ -395,7 +395,7 @@ Tests:
 **Files:** `src/cinode/ops/team_skills.py`, `ops/__init__.py`, `tests/test_ops.py`.
 
 **Produces:**
-- `team_skills(client: Cinode, team_id: int, *, on_progress: Callable[[int, int, UserSummary], None] | None = None) -> TeamSkills`.
+- `team_skills(client: Cinode, team_id: int, *, on_progress: Callable[[int, int, MemberSkills | Skipped], None] | None = None) -> TeamSkills`.
 - Result models:
   - `MemberSkills(user: UserSummary, skills: list[Skill])`
   - `Skipped(user: UserSummary, reason: Literal["forbidden", "not_found"])`
@@ -498,24 +498,24 @@ Tests:
   - `jq(expr, document, **argjson) -> bool`: runs `jq -e`.
 
 Tests: the design's acceptance table, one test per row, plus two more:
-- [ ] `whoami`
-- [ ] `users get me`
-- [ ] `users skills list me` (checked with `jq`, then each element passed to
+- [x] `whoami`
+- [x] `users get me`
+- [x] `users skills list me` (checked with `jq`, then each element passed to
   `Skill.model_validate`)
-- [ ] `users skills get me <kid>`
-- [ ] `keywords search <name>`
-- [ ] `teams members list <team>`
-- [ ] The unreadable user: exit 4 or 5, and the error `type` in stderr's JSON
+- [x] `users skills get me <kid>`
+- [x] `keywords search <name>`
+- [x] `teams members list <team>`
+- [x] The unreadable user: exit 4 or 5, and the error `type` in stderr's JSON
   is `ForbiddenError` or `NotFoundError`.
-- [ ] Added: `--raw` on `skills get` keeps `.keyword.masterSynonym`.
-- [ ] Added: `teams get <team>`, then `teams list --match <its name>`,
+- [x] Added: `--raw` on `skills get` keeps `.keyword.masterSynonym`.
+- [x] Added: `teams get <team>`, then `teams list --match <its name>`,
   contains the team.
-- [ ] `@slow`: `teams skills <team>`. The unique set of member and skipped ids
+- [x] `@slow`: `teams skills <team>`. The unique set of member and skipped ids
   equals the unique ids from `teams members list`, and the owner is in
   `members`.
-- [ ] Run `CINODE_LIVE_TESTS=1 uv run pytest -m "live and not slow"`, then
+- [x] Run `CINODE_LIVE_TESTS=1 uv run pytest -m "live and not slow"`, then
   `-m live`. Both must pass against the owner's profile.
-- [ ] Commit: "Add the live acceptance suite".
+- [x] Commit: "Add the live acceptance suite".
 
 ### Task 13: Parity and documentation
 

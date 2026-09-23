@@ -6,8 +6,8 @@ from typing import Annotated
 import typer
 
 from cinode.cli._output import JsonlOption, RawOption, run
-from cinode.models import Team, UserSummary
-from cinode.ops import team_skills
+from cinode.models import Team
+from cinode.ops import MemberSkills, Skipped, team_skills
 
 app = typer.Typer(no_args_is_help=True, help="Teams, their members, and their skills.")
 members_app = typer.Typer(no_args_is_help=True, help="One team's members.")
@@ -49,8 +49,9 @@ def list_members(team_id: TeamIdArg, raw: RawOption = False, jsonl: JsonlOption 
     run(lambda c: c.teams.members.list(team_id), raw=raw, jsonl=jsonl)
 
 
-def _progress(done: int, total: int, user: UserSummary) -> None:
-    sys.stderr.write(f"{done}/{total} members read (user {user.id})\n")
+def _progress(done: int, total: int, entry: MemberSkills | Skipped) -> None:
+    status = f"skipped: {entry.reason}" if isinstance(entry, Skipped) else "read"
+    sys.stderr.write(f"{done}/{total} {status} (user {entry.user.id})\n")
 
 
 @app.command("skills")

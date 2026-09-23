@@ -214,8 +214,9 @@ result.skipped     # list[Skipped(user: UserSummary, reason: "forbidden" | "not_
 ```
 
 A 403 or 404 on one member is recorded in `skipped` and never ends the run.
-Other errors do end it. `on_progress(done, total, user)` is an optional
-callback; the library does no printing of its own.
+Other errors do end it. `on_progress(done, total, entry)` is an optional
+callback, given the `MemberSkills` or `Skipped` entry just recorded; the
+library does no printing of its own.
 
 ## Models
 

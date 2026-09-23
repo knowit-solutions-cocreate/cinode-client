@@ -40,12 +40,13 @@ def team_skills(
     client: Cinode,
     team_id: int,
     *,
-    on_progress: Callable[[int, int, UserSummary], None] | None = None,
+    on_progress: Callable[[int, int, MemberSkills | Skipped], None] | None = None,
 ) -> TeamSkills:
     """Fetch a team and every member's skills.
 
     A 403 or 404 on one member's skills is recorded in `skipped`; any other error
-    ends the run. `on_progress(done, total, user)` is called after each member.
+    ends the run. `on_progress(done, total, entry)` is called after each member,
+    with the `MemberSkills` or `Skipped` entry just recorded.
     """
     team = client.teams.get(team_id)
     # Keep each user once, in first-seen order, preferring an entry that has the
@@ -60,12 +61,16 @@ def team_skills(
     skipped: list[Skipped] = []
     total = len(users)
     for done, user in enumerate(users.values(), start=1):
+        entry: MemberSkills | Skipped
         try:
-            members.append(MemberSkills(user=user, skills=client.users.skills.list(user.id)))
+            entry = MemberSkills(user=user, skills=client.users.skills.list(user.id))
+            members.append(entry)
         except ForbiddenError:
-            skipped.append(Skipped(user=user, reason="forbidden"))
+            entry = Skipped(user=user, reason="forbidden")
+            skipped.append(entry)
         except NotFoundError:
-            skipped.append(Skipped(user=user, reason="not_found"))
+            entry = Skipped(user=user, reason="not_found")
+            skipped.append(entry)
         if on_progress is not None:
-            on_progress(done, total, user)
+            on_progress(done, total, entry)
     return TeamSkills(team=team, members=members, skipped=skipped)
