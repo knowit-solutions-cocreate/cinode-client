@@ -210,7 +210,9 @@ Pydantic v2 models with a shared base:
 
 ```python
 class CinodeModel(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(
+        frozen=True, extra="ignore", validate_by_name=True, validate_by_alias=True
+    )
 ```
 
 - **Our field names, not Cinode's.** Models are snake_case and use domain names
@@ -222,7 +224,8 @@ class CinodeModel(BaseModel):
 - **Raw payload kept.** Every model keeps the dict it was parsed from as a
   private attribute, exposed as `.raw`. Callers and the CLI (`--raw`) can reach
   fields the models don't cover without the models' output shape filling up
-  with camelCase leftovers.
+  with camelCase leftovers. `.raw` does not count towards equality: two models
+  with the same fields are equal.
 - **Enums are open.** Values found only in prose (`companyUserType`,
   `keyword.type`) are `int` fields, not closed enums, so a new value from Cinode
   does not break parsing.
@@ -231,8 +234,8 @@ class CinodeModel(BaseModel):
 
 | Field | Source | Notes |
 |---|---|---|
-| `keyword_id: int` | `id` | the id that item routes use |
-| `name: str` | `keyword.masterSynonym` | |
+| `keyword_id: int` | `id`, else `keyword.id` | the id that item routes use |
+| `name: str` | `keyword.masterSynonym` | null → `""` |
 | `synonym_id: int \| None` | `keyword.masterSynonymId` | |
 | `keyword_type: int \| None` | `keyword.type` | |
 | `level: int \| None` | `level` | **0 → `None`**: unrated, not beginner |

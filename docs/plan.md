@@ -256,13 +256,20 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     `validate_by_alias=True`.
   - `.raw` holds the payload the model was parsed from. It is stored in a
     private attribute set by a `mode="wrap"` model validator whenever the
-    input is a dict.
+    input is a dict. `.raw` does not count towards equality: two models are
+    equal when their fields are.
   - `.parse(data, *, path=None) -> Self` and `.parse_list(...) -> list[Self]`
     wrap pydantic's `ValidationError` (and a list input that is not a list)
-    in `UnexpectedResponseError`.
+    in `UnexpectedResponseError`. The message gives each error's location
+    and message, never the input, and `parse_list` names the failing item's
+    index.
 - `Keyword` and `Skill`, with fields as in the design tables.
   - Use `AliasPath("keyword", ...)` for the values nested under `keyword`.
-  - `keyword_id` takes `AliasChoices("id", AliasPath("keyword", "id"))`.
+  - `keyword_id` is resolved by a `mode="before"` validator: top-level `id`
+    first, then `keyword.id`. The spec allows `id` to be null, so
+    `AliasChoices` alone would not do.
+  - `name` and `Keyword.name`: `None` becomes `""`. `Keyword.synonyms`:
+    `None` becomes `[]`.
   - `level`: 0 becomes `None`.
   - `days_experience`: `None` becomes 0.
   - `favourite`: `None` becomes `False`.
@@ -270,11 +277,14 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     are `@computed_field`s.
 
 Tests:
-- [ ] A real-shaped payload maps to the expected `model_dump(mode="json")`,
+- [x] A real-shaped payload maps to the expected `model_dump(mode="json")`,
   checked as one exact dict. It includes `level: 0` → `None`,
   `is_rated: False`, null `numberOfDaysWorkExperience` → 0, and an extra field
   that is absent from the dump but present in `.raw`.
-- [ ] Commit: "Add the model base, skills and keywords".
+- [x] Parametrized over the nullable fields: `masterSynonym: null` gives
+  `name == ""`, `synonyms: null` gives `[]`, and `id: null` takes
+  `keyword.id`.
+- [x] Commit: "Add the model base, skills and keywords".
 
 ### Task 6: Users, teams and identity models
 
