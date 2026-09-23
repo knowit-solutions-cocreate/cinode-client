@@ -4,6 +4,17 @@ import time
 from collections import deque
 from collections.abc import Callable
 
+MAX_RETRY_AFTER = 60.0
+
+
+def retry_after(value: str | None) -> float | None:
+    """`Retry-After` in seconds, capped at 60, or None if absent or not a positive number."""
+    try:
+        seconds = float(value or "")
+    except ValueError:
+        return None
+    return min(seconds, MAX_RETRY_AFTER) if seconds > 0 else None
+
 
 class RateLimiter:
     """Allow at most `limit` calls in any `window` seconds.

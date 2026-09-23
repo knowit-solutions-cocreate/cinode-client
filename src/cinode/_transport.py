@@ -7,9 +7,9 @@ from typing import Any, NoReturn, cast
 
 import httpx
 
-from cinode._auth import TokenManager
+from cinode._auth import TOKEN_PATH, TokenManager
 from cinode._config import Settings
-from cinode._ratelimit import RateLimiter
+from cinode._ratelimit import RateLimiter, retry_after
 from cinode._version import __version__
 from cinode.errors import (
     FORBIDDEN_HINT,
@@ -28,7 +28,6 @@ API_PREFIX = "/v0.1/"
 RATE_LIMIT_ATTEMPTS = 5
 SERVER_ATTEMPTS = 3
 RETRY_STATUSES = frozenset({502, 503, 504})
-MAX_RETRY_AFTER = 60.0
 MAX_BACKOFF = 8.0
 
 
@@ -38,7 +37,7 @@ class Transport:
     Every call is a GET, so every retry is safe: a 401 refreshes the token and
     retries once, a 429 is retried up to 5 attempts, and 502/503/504 or a
     network error up to 3. The token fetch counts as part of the attempt, so
-    its network errors and 5xx are retried the same way.
+    its network errors, 429s and 5xx are retried the same way.
     """
 
     def __init__(
@@ -80,27 +79,29 @@ class Transport:
         rate_limited = failed = 0
         refreshed = False
         while True:
+            target = TOKEN_PATH
             try:
                 token = self.tokens.get()
+                target = url
                 self._limiter.acquire()
                 response = self._http.get(url, headers={"Authorization": f"Bearer {token.value}"})
             except httpx.TransportError as exc:
                 failed += 1
                 if failed >= SERVER_ATTEMPTS:
                     raise CinodeError(
-                        f"Could not reach Cinode: {exc.__class__.__name__}.", path=url
+                        f"Could not reach Cinode: {exc.__class__.__name__}.", path=target
                     ) from exc
                 self._sleep(self._backoff(failed))
                 continue
             except httpx.RequestError as exc:
                 raise CinodeError(
-                    f"The request to Cinode failed: {exc.__class__.__name__}.", path=url
+                    f"The request to Cinode failed: {exc.__class__.__name__}.", path=target
                 ) from exc
-            except RateLimitedError:
+            except RateLimitedError as exc:
                 rate_limited += 1
                 if rate_limited >= RATE_LIMIT_ATTEMPTS:
                     raise
-                self._sleep(self._backoff(rate_limited))
+                self._sleep(exc.retry_after or self._backoff(rate_limited))
                 continue
             except ServerError as exc:
                 failed += 1
@@ -117,7 +118,10 @@ class Transport:
             if status == 429:
                 rate_limited += 1
                 if rate_limited < RATE_LIMIT_ATTEMPTS:
-                    self._sleep(_retry_after(response) or self._backoff(rate_limited))
+                    self._sleep(
+                        retry_after(response.headers.get("Retry-After"))
+                        or self._backoff(rate_limited)
+                    )
                     continue
             elif status in RETRY_STATUSES:
                 failed += 1
@@ -131,15 +135,6 @@ class Transport:
     def _backoff(self, attempt: int) -> float:
         """Exponential backoff for the `attempt`-th failure (from 1), with jitter."""
         return min(MAX_BACKOFF, 0.5 * 2 ** (attempt - 1)) * (0.5 + self._rng() / 2)
-
-
-def _retry_after(response: httpx.Response) -> float | None:
-    """`Retry-After` in seconds, capped at 60, or None if absent or not a positive number."""
-    try:
-        seconds = float(response.headers.get("Retry-After", ""))
-    except ValueError:
-        return None
-    return min(seconds, MAX_RETRY_AFTER) if seconds > 0 else None
 
 
 def _correlation_id(response: httpx.Response) -> str | None:

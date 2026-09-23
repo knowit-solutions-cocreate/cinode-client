@@ -291,8 +291,9 @@ covers that case.
 | other 4xx | raise immediately |
 
 The token fetch is part of each attempt, so a network error, 429 or
-502/503/504 from `/token` is retried the same way. A network error that
-outlasts its retries raises a plain `CinodeError`.
+502/503/504 from `/token` is retried the same way, `Retry-After` included. An
+error from the token fetch has `path` `/token`. A network error that outlasts
+its retries raises a plain `CinodeError`.
 
 **Timeouts.** 30 s by default, configurable.
 
@@ -303,7 +304,7 @@ CinodeError                     status, path, correlation_id, message
 ├── AuthError                   401 after refresh, or bad credentials at /token
 ├── ForbiddenError              403 — message explains the owner-context model
 ├── NotFoundError               404
-├── RateLimitedError            429 after retries are used up
+├── RateLimitedError            429 after retries are used up; .retry_after
 ├── BadRequestError             400 — .field_errors from {"errors": {...}}
 ├── ServerError                 5xx after retries
 └── UnexpectedResponseError     body failed to parse into the model

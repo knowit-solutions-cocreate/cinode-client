@@ -50,7 +50,23 @@ class NotFoundError(CinodeError):
 
 
 class RateLimitedError(CinodeError):
-    """A 429 that outlasted every retry."""
+    """A 429 that outlasted every retry.
+
+    `retry_after` is the response's `Retry-After` in seconds (capped at 60), or
+    None if it had none.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status: int | None = None,
+        path: str | None = None,
+        correlation_id: str | None = None,
+        retry_after: float | None = None,
+    ) -> None:
+        super().__init__(message, status=status, path=path, correlation_id=correlation_id)
+        self.retry_after = retry_after
 
 
 class BadRequestError(CinodeError):
