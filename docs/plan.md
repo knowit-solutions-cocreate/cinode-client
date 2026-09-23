@@ -417,8 +417,11 @@ Tests:
 `tests/cli/conftest.py`, `tests/cli/test_cli.py`.
 
 **Produces:**
-- `app`, a `typer.Typer` with `no_args_is_help=True`, `add_completion=False`
-  and `pretty_exceptions_enable=False`.
+- `app`, a `typer.Typer` with `no_args_is_help=True`, `add_completion=False`,
+  `pretty_exceptions_enable=False` and `rich_markup_mode=None`. Its root group
+  class turns any click usage error below it into the error envelope
+  (`"type": "UsageError"`, `status`, `path` and `correlation_id` null) on
+  stderr, with exit 2. A group given no subcommand still prints its help.
 - `main()`, and the `whoami` command.
 - `_output`:
   - `run(fetch: Callable[[Cinode], Result], *, raw=False, jsonl=False)`:
@@ -449,7 +452,8 @@ Tests:
   an empty stdout, and the exact error envelope on stderr.
 - [x] **Review focus 1:** with no credentials, exit 3 and a valid JSON
   `AuthError` on stderr.
-- [x] `users get Fredrik` gives exit 2 and makes no request.
+- [x] `users get Fredrik` gives exit 2, the exact `UsageError` envelope on
+  stderr, and makes no request.
 - [x] Commit: "Add the CLI with whoami and users commands".
 
 ### Task 11: CLI teams, keywords and schema

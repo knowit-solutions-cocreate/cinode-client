@@ -93,4 +93,14 @@ def test_no_credentials_is_an_auth_error(
 def test_a_user_that_is_not_an_id_is_a_usage_error(cli: Cli, cli_api: respx.MockRouter) -> None:
     result = cli("users", "get", "Fredrik")
     assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {
+        "error": {
+            "type": "UsageError",
+            "status": None,
+            "path": None,
+            "message": "Invalid value: must be a numeric user id or \"me\", not 'Fredrik'.",
+            "correlation_id": None,
+        }
+    }
     assert not cli_api.calls

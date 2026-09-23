@@ -372,8 +372,12 @@ cinode schema [<model>]                # JSON Schema for output models
   one `cinode schema` describes. `--raw` writes Cinode's payload untouched.
 - **stderr carries errors and progress.** A failure writes one JSON object:
   `{"error": {"type": "ForbiddenError", "status": 403, "path": "...",
-  "message": "...", "correlation_id": "..."}}`. Progress lines are written only
-  when stderr is a TTY, so an agent's captured stderr holds nothing but errors.
+  "message": "...", "correlation_id": "..."}}`. Usage errors (exit 2) use the
+  same envelope, with `"type": "UsageError"` and `status`, `path` and
+  `correlation_id` all `null`, and no rich box drawing. The one exception is
+  a group given no subcommand, which prints its help. Progress lines are
+  written only when stderr is a TTY, so an agent's captured stderr holds
+  nothing but errors.
 - **Exit codes are part of the contract:**
 
 | Code | Meaning |

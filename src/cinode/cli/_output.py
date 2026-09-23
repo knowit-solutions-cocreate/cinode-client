@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from typing import Annotated, Any, NoReturn
 
 import typer
+from typer._click.exceptions import UsageError
 
 from cinode._client import Cinode
 from cinode.errors import (
@@ -72,6 +73,19 @@ def fail(error: CinodeError) -> NoReturn:
     """Write `error`'s envelope to stderr and exit with its code."""
     sys.stderr.write(_dumps({"error": error.to_dict()}) + "\n")
     raise typer.Exit(exit_code(error))
+
+
+def usage_failure(error: UsageError) -> NoReturn:
+    """Write a usage error's envelope to stderr and exit 2."""
+    envelope = {
+        "type": "UsageError",
+        "status": None,
+        "path": None,
+        "message": error.format_message(),
+        "correlation_id": None,
+    }
+    sys.stderr.write(_dumps({"error": envelope}) + "\n")
+    raise typer.Exit(2)
 
 
 def write(result: Result, *, raw: bool, jsonl: bool) -> None:
