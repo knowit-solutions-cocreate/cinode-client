@@ -63,12 +63,15 @@ role in bold, for example `**Reviewer (spec)**`.
 
 1. The orchestrator starts an **implementer** for the next unticked task.
 2. The implementer opens a PR and reports back with its URL.
-3. The orchestrator starts both **reviewers** at once, in parallel.
+3. The orchestrator starts the **reviewers**. In round 1 it starts both, in
+   parallel. From round 2 onwards it starts only the **code reviewer**, and
+   checks for itself that the fixes match the triage and that the docs and PR
+   description are current.
 4. The orchestrator **triages** every finding: accept or reject, each with a
    one-line reason. It posts the triage as a PR comment.
 5. If any finding was accepted, the orchestrator starts a **fixer** with the
    accepted items. When the fixer has pushed, go back to step 3 for a new round.
-   The reviewers then check the fixes and review the new commits.
+   The code reviewer then checks the fixes and reviews the new commits.
 6. Once a round has no accepted blocking or should-fix findings and CI is
    green, the orchestrator squash-merges:
    `gh pr merge <n> --squash --delete-branch`.
@@ -93,6 +96,11 @@ here right away, in a small docs PR.
   lines: the PR URL or head SHA, the finding count or what changed, and any
   departure. The details belong in the PR description or comment, not in the
   reply, which keeps the orchestrator's context small.
+- **The spec reviewer runs once, on Sonnet.** In Tasks 1–9 the spec reviewer's
+  value was in round 1 (API shape, drift between code and docs); in later
+  rounds it found almost nothing. It runs in round 1 only, with the Sonnet
+  model, since it is checklist work against the design and plan. The code
+  reviewer runs every round on the session's model.
 - **Rounds after the first review only the delta.** Reviewers read the triage
   and Fixer comments, check the accepted items, review only the new commit
   range, and do not re-raise rejected findings.
