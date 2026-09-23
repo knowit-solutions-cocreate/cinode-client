@@ -400,15 +400,16 @@ Tests:
   - `MemberSkills(user: UserSummary, skills: list[Skill])`
   - `Skipped(user: UserSummary, reason: Literal["forbidden", "not_found"])`
   - `TeamSkills(team: Team, members: list[MemberSkills], skipped: list[Skipped])`
-- Members are deduplicated by `user_id`, keeping the first. A member with
-  `user=None` becomes `UserSummary(id=user_id)`.
+- Members are deduplicated by `user_id` in first-seen order, preferring an
+  entry that has the user inline. A member with `user=None` becomes
+  `UserSummary(id=user_id)`.
 - Import `Cinode` only under `TYPE_CHECKING`.
 
 Tests:
-- [ ] With members 1, 2 and 3, where 2 returns 403 and 3 returns 404: 1 is in
+- [x] With members 1, 2 and 3, where 2 returns 403 and 3 returns 404: 1 is in
   `members`, and `skipped` is `[(2, "forbidden"), (3, "not_found")]`.
-- [ ] A persistent 500 on one member raises `ServerError`.
-- [ ] Commit: "Add the team_skills operation".
+- [x] A persistent 500 on one member raises `ServerError`.
+- [x] Commit: "Add the team_skills operation".
 
 ### Task 10: CLI core and users
 
@@ -425,6 +426,7 @@ Tests:
     `{"error": e.to_dict()}` to stderr and exiting with `exit_code(e)`
     (Auth 3, Forbidden 4, NotFound 5, RateLimited 6, other 1).
   - `write(result, *, raw, jsonl)` writes `model_dump(mode="json")` or `.raw`.
+    `teams skills` (Task 11) offers no `--raw`: `TeamSkills` is built, not parsed.
   - `user_ref(str) -> UserRef` raises `typer.BadParameter` (exit 2) for input
     that is neither numeric nor `me`.
   - Shared `Annotated` types: `RawOption`, `JsonlOption`, `UserArg`.
