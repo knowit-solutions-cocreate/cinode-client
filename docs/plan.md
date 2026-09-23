@@ -169,14 +169,15 @@ Tests:
 
 **Decoding:** base64url-decode the JWT payload; the signature is not checked.
 `sub` gives the user id and `companySub` the company id. The lifetime is
-`exp - iat` when both are present, otherwise 120 s, and
-`expires_at = issued_at + lifetime`. A malformed token raises
-`UnexpectedResponseError`.
+`exp - iat` when both are present and the difference is finite and positive,
+otherwise 120 s, and `expires_at = issued_at + lifetime`. A malformed token
+raises `UnexpectedResponseError`.
 
 **Fetching:**
 - `GET /token` with `Authorization: Basic …`, after `limiter.acquire()`.
 - 400, 401 or 403 → `AuthError`.
 - 429 → `RateLimitedError`.
+- 5xx → `ServerError`.
 - Any other ≥400 → `CinodeError`.
 - A body without `access_token` → `UnexpectedResponseError`.
 - The manager refetches when less than 30 s of the lifetime remain.
@@ -187,12 +188,12 @@ Tests:
   with a named `token` route that returns `make_jwt()`.
 
 Tests:
-- [ ] Two calls to `get()` make one request. Moving the clock to 91 s after
+- [x] Two calls to `get()` make one request. Moving the clock to 91 s after
   issue triggers a refetch.
-- [ ] **Review focus 3:** a token whose `iat` and `exp` are far in the past
+- [x] **Review focus 3:** a token whose `iat` and `exp` are far in the past
   (skewed clocks) is still cached for its full lifetime.
-- [ ] A 401 from `/token` gives `AuthError`.
-- [ ] Commit: "Add token exchange and caching".
+- [x] A 401 from `/token` gives `AuthError`.
+- [x] Commit: "Add token exchange and caching".
 
 ### Task 4: Transport
 
