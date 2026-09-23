@@ -35,11 +35,13 @@ def test_lifetime_is_counted_on_the_local_clock(
     tokens: TokenManager, clock: FakeClock, api: respx.MockRouter
 ) -> None:
     # By Cinode's clock the token was issued and expired long ago; ours
-    # disagrees. It must still be cached for its full lifetime.
+    # disagrees. It must still be cached for its full lifetime, which comes
+    # from its claims (600 s, not the 120 s default).
     clock.t = 1_800_000_000.0
-    api["token"].return_value = httpx.Response(200, json={"access_token": make_jwt(iat=1000)})
+    jwt = make_jwt(iat=1000, lifetime=600)
+    api["token"].return_value = httpx.Response(200, json={"access_token": jwt})
     tokens.get()
-    clock.t += 89
+    clock.t += 560
     tokens.get()
     assert api["token"].call_count == 1
 
