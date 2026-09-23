@@ -275,10 +275,11 @@ model does not pass it through. `is_rated` is a computed boolean.
 
 ## Transport
 
-`Transport.get(path, *, versioned=True) -> Any` is the only way to reach the
-network. Paths go under `/v0.1/`, or under `/` with `versioned=False` (for
-`/_whoami`). It has no `post`, `put` or `request`. The CLI and resources go through
-it, and a test asserts that `httpx` never sees any method other than GET.
+`Transport.get(path, *, versioned=True) -> Any` and `Transport.token()` are the
+only ways to reach the network, and both issue only GET. Paths go under
+`/v0.1/`, or under `/` with `versioned=False` (for `/_whoami`). There is no
+`post`, `put` or `request`. The CLI and resources go through them, and a test
+asserts that `httpx` never sees any method other than GET.
 
 **Tokens.** `TokenManager` exchanges credentials, decodes the JWT payload
 (base64 only; the signature is not verified, since the claims are used only for
