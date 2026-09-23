@@ -405,10 +405,10 @@ Tests:
 - Import `Cinode` only under `TYPE_CHECKING`.
 
 Tests:
-- [ ] With members 1, 2 and 3, where 2 returns 403 and 3 returns 404: 1 is in
+- [x] With members 1, 2 and 3, where 2 returns 403 and 3 returns 404: 1 is in
   `members`, and `skipped` is `[(2, "forbidden"), (3, "not_found")]`.
-- [ ] A persistent 500 on one member raises `ServerError`.
-- [ ] Commit: "Add the team_skills operation".
+- [x] A persistent 500 on one member raises `ServerError`.
+- [x] Commit: "Add the team_skills operation".
 
 ### Task 10: CLI core and users
 
