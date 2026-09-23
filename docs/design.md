@@ -105,7 +105,7 @@ src/cinode/
   _config.py           credentials and settings from args or environment
   _transport.py        Transport: get(), retries, error mapping
   _auth.py             TokenManager: exchange, JWT claims, expiry
-  _ratelimit.py        sliding-window limiter with an injectable clock
+  _ratelimit.py        sliding-window limiter with an injectable clock, and Retry-After parsing
   errors.py            exception hierarchy
   models/
     _base.py           CinodeModel base config
