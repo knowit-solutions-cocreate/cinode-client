@@ -75,6 +75,8 @@ class Transport:
         Returns the decoded JSON body, or None for an empty body.
         """
         url = (API_PREFIX if versioned else "/") + path.lstrip("/")
+        if self._http.is_closed:
+            raise CinodeError("The transport has been closed.", path=url)
         rate_limited = failed = 0
         refreshed = False
         while True:
@@ -90,6 +92,10 @@ class Transport:
                     ) from exc
                 self._sleep(self._backoff(failed))
                 continue
+            except httpx.RequestError as exc:
+                raise CinodeError(
+                    f"The request to Cinode failed: {exc.__class__.__name__}.", path=url
+                ) from exc
             except RateLimitedError:
                 rate_limited += 1
                 if rate_limited >= RATE_LIMIT_ATTEMPTS:
