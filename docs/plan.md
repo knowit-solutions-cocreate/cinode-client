@@ -307,10 +307,10 @@ Tests:
 - `models/__init__` exports all of these, plus `CinodeModel`, `Skill` and `Keyword`.
 
 Tests:
-- [ ] Parametrized over three payloads: the member's user id comes from the
+- [x] Parametrized over three payloads: the member's user id comes from the
   inline `companyUser`, from a top-level `companyUserId` only (with
   `user=None`), and from the inline one when the top-level one is null.
-- [ ] Commit: "Add user, team and identity models".
+- [x] Commit: "Add user, team and identity models".
 
 ### Task 7: Resources, the client and users
 
