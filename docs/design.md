@@ -261,8 +261,9 @@ model does not pass it through. `is_rated` is a computed boolean.
 
 ## Transport
 
-`Transport.get(path, *, base=API) -> Any` is the only way to reach the
-network. It has no `post`, `put` or `request`. The CLI and resources go through
+`Transport.get(path, *, versioned=True) -> Any` is the only way to reach the
+network. Paths go under `/v0.1/`, or under `/` with `versioned=False` (for
+`/_whoami`). It has no `post`, `put` or `request`. The CLI and resources go through
 it, and a test asserts that `httpx` never sees any method other than GET.
 
 **Tokens.** `TokenManager` exchanges credentials, decodes the JWT payload
@@ -288,6 +289,10 @@ covers that case.
 | 502, 503, 504, connect/read error | back off, up to 3 attempts |
 | 401 | refresh token, retry once |
 | other 4xx | raise immediately |
+
+The token fetch is part of each attempt, so a network error, 429 or
+502/503/504 from `/token` is retried the same way. A network error that
+outlasts its retries raises a plain `CinodeError`.
 
 **Timeouts.** 30 s by default, configurable.
 
