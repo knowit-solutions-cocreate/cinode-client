@@ -67,8 +67,9 @@ def test_429_and_5xx_are_retried_with_backoff(
             {"correlation_id": "abc-123", "message": FORBIDDEN_HINT},
         ),
         (httpx.Response(404), NotFoundError, {"status": 404, "path": PATH}),
+        (httpx.Response(302), CinodeError, {"type": "CinodeError", "status": 302}),
     ],
-    ids=["400", "403", "404"],
+    ids=["400", "403", "404", "302"],
 )
 def test_error_statuses_raise_without_retry(
     transport: Transport,

@@ -118,7 +118,7 @@ class Transport:
                 if failed < SERVER_ATTEMPTS:
                     self._sleep(self._backoff(failed))
                     continue
-            if status >= 400:
+            if not response.is_success:
                 _raise_for_status(response, url)
             return _json(response, url)
 
