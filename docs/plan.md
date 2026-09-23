@@ -395,7 +395,7 @@ Tests:
 **Files:** `src/cinode/ops/team_skills.py`, `ops/__init__.py`, `tests/test_ops.py`.
 
 **Produces:**
-- `team_skills(client: Cinode, team_id: int, *, on_progress: Callable[[int, int, UserSummary], None] | None = None) -> TeamSkills`.
+- `team_skills(client: Cinode, team_id: int, *, on_progress: Callable[[int, int, MemberSkills | Skipped], None] | None = None) -> TeamSkills`.
 - Result models:
   - `MemberSkills(user: UserSummary, skills: list[Skill])`
   - `Skipped(user: UserSummary, reason: Literal["forbidden", "not_found"])`
