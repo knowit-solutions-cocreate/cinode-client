@@ -224,7 +224,8 @@ class CinodeModel(BaseModel):
 - **Raw payload kept.** Every model keeps the dict it was parsed from as a
   private attribute, exposed as `.raw`. Callers and the CLI (`--raw`) can reach
   fields the models don't cover without the models' output shape filling up
-  with camelCase leftovers.
+  with camelCase leftovers. `.raw` does not count towards equality: two models
+  with the same fields are equal.
 - **Enums are open.** Values found only in prose (`companyUserType`,
   `keyword.type`) are `int` fields, not closed enums, so a new value from Cinode
   does not break parsing.

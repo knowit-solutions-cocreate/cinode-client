@@ -256,7 +256,8 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     `validate_by_alias=True`.
   - `.raw` holds the payload the model was parsed from. It is stored in a
     private attribute set by a `mode="wrap"` model validator whenever the
-    input is a dict.
+    input is a dict. `.raw` does not count towards equality: two models are
+    equal when their fields are.
   - `.parse(data, *, path=None) -> Self` and `.parse_list(...) -> list[Self]`
     wrap pydantic's `ValidationError` (and a list input that is not a list)
     in `UnexpectedResponseError`.

@@ -32,6 +32,13 @@ class CinodeModel(BaseModel):
             model._raw = data
         return model
 
+    def __eq__(self, other: object) -> bool:
+        # Pydantic's own `__eq__` also compares private attributes, so two models
+        # with the same fields would differ by `.raw`. Compare the fields only.
+        if not isinstance(other, CinodeModel):
+            return NotImplemented
+        return type(self) is type(other) and self.__dict__ == other.__dict__
+
     @property
     def raw(self) -> dict[str, Any]:
         """The payload this model was parsed from, untouched."""
