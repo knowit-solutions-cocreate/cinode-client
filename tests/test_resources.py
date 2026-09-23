@@ -33,6 +33,15 @@ def test_a_bad_user_ref_raises_before_any_request(
     assert not api.calls
 
 
+@pytest.mark.parametrize("term", ["", "  ", ".", "..", 123, None, b"C#"])
+def test_a_bad_keyword_term_raises_before_any_request(
+    client: Cinode, api: respx.MockRouter, term: object
+) -> None:
+    with pytest.raises(ValueError):
+        client.keywords.search(term)  # pyright: ignore[reportArgumentType]
+    assert not api.calls
+
+
 @pytest.mark.parametrize(
     ("term", "segment"),
     [

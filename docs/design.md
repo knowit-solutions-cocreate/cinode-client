@@ -166,7 +166,10 @@ values an agent supplied, and type hints do nothing at run time. A user ref must
 be exactly `"me"` or a positive `int` that is not a `bool`; digit strings such
 as `"158773"` are rejected, and the CLI converts its arguments before calling.
 Every other id (`keyword_id`, `team_id`) must be a positive `int` that is not a
-`bool`. Anything else raises `ValueError`.
+`bool`. A keyword search term must be a `str`; it is stripped, and a term that
+is then empty or made only of dots (`.`, `..`) is rejected, since httpx would
+collapse it as a dot segment and reach a different endpoint. Anything else
+raises `ValueError`.
 
 `Cinode` is a context manager and owns its `httpx.Client`:
 `with Cinode.from_env() as c: ...`.
