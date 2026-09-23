@@ -83,6 +83,15 @@ third, the orchestrator stops and asks the human.
 - live tests need credentials that are not in the environment
 - reviewers disagree on something that cannot be settled from the design
 
+### Resuming
+
+The orchestrator keeps no state of its own; the repository holds it. To pick
+up after a break or a lost context:
+
+1. Pull `main`. The first task in `docs/plan.md` with unticked boxes is next.
+2. Run `gh pr list`. If that task already has an open PR, read its comments to
+   see which round it is in and what was last triaged. Carry on from there.
+
 ### Roles
 
 Every agent prompt begins: *"You are the **<role>** agent in the cinode-client
