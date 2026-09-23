@@ -1,0 +1,51 @@
+[project]
+name = "cinode-client"
+version = "0.1.0"
+description = "A read-only Python library and CLI for the Cinode API."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.13.5",
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+cinode = "cinode.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "cinode"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+addopts = "-m 'not live and not slow'"
+strict_markers = true
+markers = [
+    "live: runs against the live Cinode API; needs credentials",
+    "slow: takes more than a few seconds",
+]
+
+[tool.ruff]
+line-length = 100
+# Ruff formats code blocks in Markdown; the docs' aligned examples are prose.
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+typeCheckingMode = "strict"
+include = ["src"]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "respx>=0.23.1",
+    "ruff>=0.16.8",
+]
