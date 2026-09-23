@@ -177,6 +177,7 @@ raises `UnexpectedResponseError`.
 - `GET /token` with `Authorization: Basic …`, after `limiter.acquire()`.
 - 400, 401 or 403 → `AuthError`.
 - 429 → `RateLimitedError`.
+- 5xx → `ServerError`.
 - Any other ≥400 → `CinodeError`.
 - A body without `access_token` → `UnexpectedResponseError`.
 - The manager refetches when less than 30 s of the lifetime remain.

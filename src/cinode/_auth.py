@@ -12,7 +12,13 @@ from typing import Any, cast
 import httpx
 
 from cinode._ratelimit import RateLimiter
-from cinode.errors import AuthError, CinodeError, RateLimitedError, UnexpectedResponseError
+from cinode.errors import (
+    AuthError,
+    CinodeError,
+    RateLimitedError,
+    ServerError,
+    UnexpectedResponseError,
+)
 
 TOKEN_PATH = "/token"
 DEFAULT_LIFETIME = 120.0
@@ -116,6 +122,10 @@ class TokenManager:
         if status == 429:
             raise RateLimitedError(
                 "Cinode rate-limited the token exchange.", status=status, path=TOKEN_PATH
+            )
+        if status >= 500:
+            raise ServerError(
+                f"The token exchange failed with HTTP {status}.", status=status, path=TOKEN_PATH
             )
         if status >= 400:
             raise CinodeError(
