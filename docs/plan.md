@@ -478,9 +478,9 @@ Tests:
   - An unknown name gives exit 2 with the valid names in the message.
 
 Tests:
-- [ ] `teams skills` with one member returning 403 gives exit 0, and the
+- [x] `teams skills` with one member returning 403 gives exit 0, and the
   `skipped` array holds that member.
-- [ ] Commit: "Add the teams, keywords and schema commands".
+- [x] Commit: "Add the teams, keywords and schema commands".
 
 ### Task 12: Live acceptance suite
 
