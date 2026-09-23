@@ -187,12 +187,12 @@ Tests:
   with a named `token` route that returns `make_jwt()`.
 
 Tests:
-- [ ] Two calls to `get()` make one request. Moving the clock to 91 s after
+- [x] Two calls to `get()` make one request. Moving the clock to 91 s after
   issue triggers a refetch.
-- [ ] **Review focus 3:** a token whose `iat` and `exp` are far in the past
+- [x] **Review focus 3:** a token whose `iat` and `exp` are far in the past
   (skewed clocks) is still cached for its full lifetime.
-- [ ] A 401 from `/token` gives `AuthError`.
-- [ ] Commit: "Add token exchange and caching".
+- [x] A 401 from `/token` gives `AuthError`.
+- [x] Commit: "Add token exchange and caching".
 
 ### Task 4: Transport
 
