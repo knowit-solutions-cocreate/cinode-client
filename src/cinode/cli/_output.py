@@ -57,16 +57,14 @@ def run(fetch: Callable[[Cinode], Result], *, raw: bool = False, jsonl: bool = F
     """Call `fetch` with a client from the environment, and write its result to stdout.
 
     A `CinodeError` is written to stderr as `{"error": ...}`, and the process
-    exits with its code. A `ValueError` from the library's argument checks is a
-    usage error (exit 2).
+    exits with its code. Validate arguments before calling `run()`: anything
+    else raised in here is a bug, and surfaces as one.
     """
     try:
         with Cinode.from_env() as client:
             result = fetch(client)
     except CinodeError as error:
         fail(error)
-    except ValueError as error:
-        raise typer.BadParameter(str(error)) from None
     write(result, raw=raw, jsonl=jsonl)
 
 

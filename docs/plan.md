@@ -422,7 +422,7 @@ Tests:
 - `main()`, and the `whoami` command.
 - `_output`:
   - `run(fetch: Callable[[Cinode], Result], *, raw=False, jsonl=False)`:
-    builds `Cinode.from_env()`, and catches `CinodeError`, writing
+    builds `Cinode.from_env()`, and catches only `CinodeError`, writing
     `{"error": e.to_dict()}` to stderr and exiting with `exit_code(e)`
     (Auth 3, Forbidden 4, NotFound 5, RateLimited 6, other 1).
   - `write(result, *, raw, jsonl)` writes `model_dump(mode="json")` or `.raw`.
@@ -463,7 +463,10 @@ Tests:
 - `teams skills <id>`, which calls `ops.team_skills`. Progress lines go to
   stderr only when `sys.stderr.isatty()`. It exits 0 even when members are
   skipped.
-- `keywords search <term>`. An empty term gives `BadParameter`, exit 2.
+- `keywords search <term>`. An empty term gives `BadParameter`, exit 2. Check
+  the term **before** `run()`, in a small helper like `user_ref()`: `run()`
+  catches only `CinodeError`, so a `ValueError` raised inside it surfaces as
+  a bug (a traceback, exit 1), not as a usage error.
 - `schema [model]`. With no argument it writes a sorted JSON array of names;
   with a name it writes `model_json_schema(mode="serialization")`.
   - Names: `skill`, `keyword`, `user`, `user-summary`, `team`, `team-member`,
