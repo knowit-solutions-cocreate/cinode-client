@@ -233,8 +233,8 @@ class CinodeModel(BaseModel):
 
 | Field | Source | Notes |
 |---|---|---|
-| `keyword_id: int` | `id` | the id that item routes use |
-| `name: str` | `keyword.masterSynonym` | |
+| `keyword_id: int` | `id`, else `keyword.id` | the id that item routes use |
+| `name: str` | `keyword.masterSynonym` | null → `""` |
 | `synonym_id: int \| None` | `keyword.masterSynonymId` | |
 | `keyword_type: int \| None` | `keyword.type` | |
 | `level: int \| None` | `level` | **0 → `None`**: unrated, not beginner |

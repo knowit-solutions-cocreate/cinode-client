@@ -262,7 +262,11 @@ shaped like `CompanyUserSkillModel` and `KeywordModel`), `tests/test_models.py`.
     in `UnexpectedResponseError`.
 - `Keyword` and `Skill`, with fields as in the design tables.
   - Use `AliasPath("keyword", ...)` for the values nested under `keyword`.
-  - `keyword_id` takes `AliasChoices("id", AliasPath("keyword", "id"))`.
+  - `keyword_id` is resolved by a `mode="before"` validator: top-level `id`
+    first, then `keyword.id`. The spec allows `id` to be null, so
+    `AliasChoices` alone would not do.
+  - `name` and `Keyword.name`: `None` becomes `""`. `Keyword.synonyms`:
+    `None` becomes `[]`.
   - `level`: 0 becomes `None`.
   - `days_experience`: `None` becomes 0.
   - `favourite`: `None` becomes `False`.
@@ -274,6 +278,9 @@ Tests:
   checked as one exact dict. It includes `level: 0` → `None`,
   `is_rated: False`, null `numberOfDaysWorkExperience` → 0, and an extra field
   that is absent from the dump but present in `.raw`.
+- [x] Parametrized over the nullable fields: `masterSynonym: null` gives
+  `name == ""`, `synonyms: null` gives `[]`, and `id: null` takes
+  `keyword.id`.
 - [x] Commit: "Add the model base, skills and keywords".
 
 ### Task 6: Users, teams and identity models
