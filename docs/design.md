@@ -105,7 +105,7 @@ src/cinode/
   _config.py           credentials and settings from args or environment
   _transport.py        Transport: get(), retries, error mapping
   _auth.py             TokenManager: exchange, JWT claims, expiry
-  _ratelimit.py        sliding-window limiter with an injectable clock
+  _ratelimit.py        sliding-window limiter with an injectable clock, and Retry-After parsing
   errors.py            exception hierarchy
   models/
     _base.py           CinodeModel base config
@@ -261,8 +261,9 @@ model does not pass it through. `is_rated` is a computed boolean.
 
 ## Transport
 
-`Transport.get(path, *, base=API) -> Any` is the only way to reach the
-network. It has no `post`, `put` or `request`. The CLI and resources go through
+`Transport.get(path, *, versioned=True) -> Any` is the only way to reach the
+network. Paths go under `/v0.1/`, or under `/` with `versioned=False` (for
+`/_whoami`). It has no `post`, `put` or `request`. The CLI and resources go through
 it, and a test asserts that `httpx` never sees any method other than GET.
 
 **Tokens.** `TokenManager` exchanges credentials, decodes the JWT payload
@@ -289,6 +290,11 @@ covers that case.
 | 401 | refresh token, retry once |
 | other 4xx | raise immediately |
 
+The token fetch is part of each attempt, so a network error, 429 or
+502/503/504 from `/token` is retried the same way, `Retry-After` included. An
+error from the token fetch has `path` `/token`. A network error that outlasts
+its retries raises a plain `CinodeError`.
+
 **Timeouts.** 30 s by default, configurable.
 
 ### Errors
@@ -298,7 +304,7 @@ CinodeError                     status, path, correlation_id, message
 ├── AuthError                   401 after refresh, or bad credentials at /token
 ├── ForbiddenError              403 — message explains the owner-context model
 ├── NotFoundError               404
-├── RateLimitedError            429 after retries are used up
+├── RateLimitedError            429 after retries are used up; .retry_after
 ├── BadRequestError             400 — .field_errors from {"errors": {...}}
 ├── ServerError                 5xx after retries
 └── UnexpectedResponseError     body failed to parse into the model

@@ -119,10 +119,12 @@ for CI to check.
 - `CinodeError(message, *, status=None, path=None, correlation_id=None)` with
   `.to_dict() -> {"type", "status", "path", "message", "correlation_id"}`.
 - Its subclasses:
-  - `AuthError`, `ForbiddenError`, `NotFoundError`, `RateLimitedError`,
-    `ServerError`, `UnexpectedResponseError`
+  - `AuthError`, `ForbiddenError`, `NotFoundError`, `ServerError`,
+    `UnexpectedResponseError`
   - `BadRequestError(..., field_errors: dict[str, list[str]])`, which adds
     `field_errors` to `to_dict()`
+  - `RateLimitedError(..., retry_after: float | None = None)`, which adds
+    `retry_after` to `to_dict()` (added in Task 4)
 - `FORBIDDEN_HINT`, a message explaining the owner-context model.
 - `Settings(basic, base_url=DEFAULT_BASE_URL, timeout=30.0)`: a frozen
   dataclass, with `basic` hidden from `repr`. Two constructors:
@@ -232,15 +234,15 @@ and `transport`), `tests/test_transport.py`.
 `rng=lambda: 1.0`, which makes the backoff deterministic: 0.5, 1, 2, 4.
 
 Tests:
-- [ ] 401 then 200 succeeds with two token fetches; 401 twice gives `AuthError`.
-- [ ] 429 with `Retry-After: 3` sleeps `[3.0]`; five 429s give
+- [x] 401 then 200 succeeds with two token fetches; 401 twice gives `AuthError`.
+- [x] 429 with `Retry-After: 3` sleeps `[3.0]`; five 429s give
   `RateLimitedError` after `[0.5, 1, 2, 4]`. Three 503s give `ServerError`.
-- [ ] One parametrized test of the status mapping: 400 (with `field_errors`),
+- [x] One parametrized test of the status mapping: 400 (with `field_errors`),
   403 (with `X-Correlation-Id` and the hint), 404, each raised without retry.
-- [ ] **Review focus 5:** a 200 with an HTML body gives `UnexpectedResponseError`.
-- [ ] GET-only: `Transport` has no write-method attributes, and every
+- [x] **Review focus 5:** a 200 with an HTML body gives `UnexpectedResponseError`.
+- [x] GET-only: `Transport` has no write-method attributes, and every
   recorded call is a `GET`.
-- [ ] Commit: "Add the GET-only transport".
+- [x] Commit: "Add the GET-only transport".
 
 ### Task 5: Model base, skills and keywords
 

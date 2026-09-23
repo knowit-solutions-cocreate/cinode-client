@@ -11,7 +11,7 @@ from typing import Any, cast
 
 import httpx
 
-from cinode._ratelimit import RateLimiter
+from cinode._ratelimit import RateLimiter, retry_after
 from cinode.errors import (
     AuthError,
     CinodeError,
@@ -121,7 +121,10 @@ class TokenManager:
             raise AuthError("Cinode rejected the API credentials.", status=status, path=TOKEN_PATH)
         if status == 429:
             raise RateLimitedError(
-                "Cinode rate-limited the token exchange.", status=status, path=TOKEN_PATH
+                "Cinode rate-limited the token exchange.",
+                status=status,
+                path=TOKEN_PATH,
+                retry_after=retry_after(response.headers.get("Retry-After")),
             )
         if status >= 500:
             raise ServerError(
