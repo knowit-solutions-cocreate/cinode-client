@@ -95,18 +95,19 @@ tests/
 `CHANGELOG.md`, `src/cinode/__init__.py`, `src/cinode/_version.py`,
 `src/cinode/py.typed`, `.github/workflows/ci.yml`.
 
-- [ ] `pyproject.toml` following the global constraints, plus:
+- [x] `pyproject.toml` following the global constraints, plus:
   - pytest settings: `testpaths = ["tests"]`, `pythonpath = ["tests"]`,
     markers `live` and `slow`, `addopts = "-m 'not live and not slow'"`,
     strict markers
-  - ruff: line length 100; rules `E`, `F`, `I`, `UP`, `B`, `SIM`, `RUF`
+  - ruff: line length 100; rules `E`, `F`, `I`, `UP`, `B`, `SIM`, `RUF`;
+    `extend-exclude = ["*.md"]`, since ruff also formats Markdown code blocks
   - pyright: `typeCheckingMode = "strict"`, `include = ["src"]`
-- [ ] `.gitignore`: `.venv/`, the caches, `dist/`, `.env`, and for personnel
+- [x] `.gitignore`: `.venv/`, the caches, `dist/`, `.env`, and for personnel
   data `data/`, `*.csv`, `*.json`.
-- [ ] `_version.py` sets `__version__ = importlib.metadata.version("cinode-client")`,
+- [x] `_version.py` sets `__version__ = importlib.metadata.version("cinode-client")`,
   and `__init__` re-exports it. It lives in its own module so the transport
   can import it without an import cycle.
-- [ ] `.github/workflows/ci.yml`: on pull requests to `main`, set up uv
+- [x] `.github/workflows/ci.yml`: on pull requests to `main`, set up uv
   (`astral-sh/setup-uv`), run `uv sync --locked`, then the four checks. No
   secrets, and no live tests.
 
@@ -130,10 +131,10 @@ for CI to check.
 - `DEFAULT_BASE_URL = "https://api.cinode.com"` (the root, without `/v0.1`).
 
 Tests:
-- [ ] `from_env`: id and secret win over `CINODE_BASIC`; with neither set,
+- [x] `from_env`: id and secret win over `CINODE_BASIC`; with neither set,
   `AuthError`.
-- [ ] **Review focus 2:** `CINODE_BASIC="YWJj\nZGVm \n"` becomes `"YWJjZGVm"`.
-- [ ] `uv sync`, run the checks, commit in two chunks ("Scaffold the
+- [x] **Review focus 2:** `CINODE_BASIC="YWJj\nZGVm \n"` becomes `"YWJjZGVm"`.
+- [x] `uv sync`, run the checks, commit in two chunks ("Scaffold the
   cinode-client package", "Add errors and configuration").
 
 ### Task 2: Rate limiter
