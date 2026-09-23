@@ -1,4 +1,5 @@
 import httpx
+import pytest
 import respx
 from support import make_jwt, skill_payload
 
@@ -21,3 +22,12 @@ def test_the_first_token_fetch_is_retried(client: Cinode, api: respx.MockRouter)
     ]
     api.get("/v0.1/companies/99/users").mock(return_value=httpx.Response(200, json=[]))
     assert client.users.list() == []
+
+
+@pytest.mark.parametrize("ref", [True, 0, -5, "158773", "../../teams"])
+def test_a_bad_user_ref_raises_before_any_request(
+    client: Cinode, api: respx.MockRouter, ref: object
+) -> None:
+    with pytest.raises(ValueError):
+        client.users.skills.list(ref)  # pyright: ignore[reportArgumentType]
+    assert not api.calls

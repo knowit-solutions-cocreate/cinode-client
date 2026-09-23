@@ -3,27 +3,25 @@
 import builtins
 
 from cinode.models import Skill, Team, User, UserSummary
-from cinode.resources._base import Context, Resource, UserRef
+from cinode.resources._base import Context, Resource, UserRef, require_id
 
 
 class UserSkills(Resource):
     """`users/{u}/skills`: one user's skills."""
 
     def list(self, user: UserRef) -> builtins.list[Skill]:
-        path = f"users/{self._ctx.user_id(user)}/skills"
-        return Skill.parse_list(self._ctx.get(path), path=self._ctx.path(path))
+        return self._list(Skill, f"users/{self._ctx.user_id(user)}/skills")
 
     def get(self, user: UserRef, keyword_id: int) -> Skill:
-        path = f"users/{self._ctx.user_id(user)}/skills/{keyword_id}"
-        return Skill.parse(self._ctx.get(path), path=self._ctx.path(path))
+        keyword = require_id(keyword_id, "keyword_id")
+        return self._one(Skill, f"users/{self._ctx.user_id(user)}/skills/{keyword}")
 
 
 class UserTeams(Resource):
     """`users/{u}/teams`: the teams one user belongs to."""
 
     def list(self, user: UserRef) -> builtins.list[Team]:
-        path = f"users/{self._ctx.user_id(user)}/teams"
-        return Team.parse_list(self._ctx.get(path), path=self._ctx.path(path))
+        return self._list(Team, f"users/{self._ctx.user_id(user)}/teams")
 
 
 class Users(Resource):
@@ -35,8 +33,7 @@ class Users(Resource):
         self.teams = UserTeams(ctx)
 
     def list(self) -> builtins.list[UserSummary]:
-        return UserSummary.parse_list(self._ctx.get("users"), path=self._ctx.path("users"))
+        return self._list(UserSummary, "users")
 
     def get(self, user: UserRef) -> User:
-        path = f"users/{self._ctx.user_id(user)}"
-        return User.parse(self._ctx.get(path), path=self._ctx.path(path))
+        return self._one(User, f"users/{self._ctx.user_id(user)}")
