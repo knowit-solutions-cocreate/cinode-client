@@ -68,6 +68,9 @@ class RateLimitedError(CinodeError):
         super().__init__(message, status=status, path=path, correlation_id=correlation_id)
         self.retry_after = retry_after
 
+    def to_dict(self) -> dict[str, Any]:
+        return {**super().to_dict(), "retry_after": self.retry_after}
+
 
 class BadRequestError(CinodeError):
     """A 400, with Cinode's per-field messages in `field_errors`."""

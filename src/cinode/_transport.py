@@ -198,7 +198,11 @@ def _raise_for_status(response: httpx.Response, path: str) -> NoReturn:
     if status == 404:
         raise NotFoundError(f"Cinode has nothing at {path}.", **common)
     if status == 429:
-        raise RateLimitedError("Cinode is still rate-limiting after every retry.", **common)
+        raise RateLimitedError(
+            "Cinode is still rate-limiting after every retry.",
+            retry_after=retry_after(response.headers.get("Retry-After")),
+            **common,
+        )
     if status >= 500:
         raise ServerError(f"Cinode failed with HTTP {status}.", **common)
     raise CinodeError(f"Cinode answered HTTP {status}.", **common)
