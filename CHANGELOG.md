@@ -5,6 +5,8 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+- Licensed under the MIT licence.
+
 ## 0.1.0 — 2026-09-23
 
 The first release: a read-only library and CLI for Cinode skills, and the
