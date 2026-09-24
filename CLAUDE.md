@@ -147,7 +147,11 @@ minutes a task, however small the change. A good task:
    The code reviewer then checks the fixes and reviews the new commits.
 6. Once a round has no accepted blocking or should-fix findings and CI is
    green, the orchestrator squash-merges:
-   `gh pr merge <n> --squash --delete-branch`.
+   `gh pr merge <n> --squash --delete-branch --body "<body>"`. The PR title
+   is the commit's title. The orchestrator writes the body itself, for
+   readers of `git log`: at most a few lines saying what changed and why,
+   then any departure from the plan and any triage decision a reader might
+   trip over. No checks output, no footer and no personnel data.
 7. The orchestrator pulls `main`, then goes on to the next task. After the
    last task it stops for the release (see *Human in the loop*).
 
@@ -202,8 +206,8 @@ here right away, in a small docs PR.
   `git push origin HEAD:<branch>`.
 - **The PR description tracks the code.** Whoever changes behaviour updates
   the PR description in the same step: the implementer when opening the PR,
-  the fixer when a fix changes what the description says. A stale description
-  becomes the squash commit's message.
+  the fixer when a fix changes what the description says. The description
+  is for reviewers; the squash commit's body is written separately at merge.
 - **The orchestrator fixes trivial nits itself.** A stale PR description or a
   one-line docs wording fix is done by the orchestrator directly (in a scratch
   worktree, never on `main`), instead of costing a fixer and another round.
