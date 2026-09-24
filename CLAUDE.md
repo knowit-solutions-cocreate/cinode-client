@@ -104,7 +104,8 @@ The designer then:
 4. **Writes the handoff:** the changes to `docs/design.md`, a new
    `docs/plan.md` in the format of the archived plans (goal, constraints,
    review focus, file map, tasks with interfaces), and the roadmap entry. These
-   go in as one PR.
+   go in as one PR. Each task is named as an imperative sentence ("Add cinode
+   init"), since its name becomes a commit title on `main`.
 5. **Waits for the human to approve and merge that PR.** That approval is the
    handoff.
 6. **Retires,** with exactly: *"My work here is done, I retire."* It starts no
@@ -317,8 +318,10 @@ Carries out one plan task.
   the plan, but must say so in the PR.
 - Runs the four checks, commits in logical chunks, ticks the task's checkboxes
   in `docs/plan.md`, and pushes.
-- Opens the PR with `gh pr create --base main`. The PR is titled
-  `Task NN: <name>`, and its body gives:
+- Opens the PR with `gh pr create --base main`. The title becomes the squash
+  commit's title on `main`, where it must make sense without the plan: the
+  task's name as an imperative sentence, then the version and task number,
+  for example `Add cinode init (v0.3 task 2)`. The body gives:
   - what was built
   - any departure from the plan, and why
   - the output of the checks, summarised
