@@ -6,7 +6,7 @@ from typing import Annotated
 
 import typer
 
-from cinode.cli.config import ConfigReport
+from cinode.cli.config import ConfigReport, InitResult
 from cinode.models import (
     CinodeModel,
     Keyword,
@@ -24,6 +24,7 @@ from cinode.ops import TeamProfiles, TeamSkills
 
 MODELS: dict[str, type[CinodeModel]] = {
     "config": ConfigReport,
+    "init": InitResult,
     "keyword": Keyword,
     "profile": Profile,
     "resume": Resume,

@@ -16,6 +16,12 @@ semantic versioning; while the version is 0.x, minor versions may break.
 - **`cinode config show`** reports where the credentials in use come from,
   the AccessId, and the credentials file's path, existence and permissions,
   without a network call. `cinode schema` gains `config`.
+- **`cinode init`** checks credentials with `whoami()` and saves them to the
+  credentials file, created with mode `0600` and written atomically. It takes
+  them from prompts on a terminal, from `--access-id` and the first line of
+  stdin otherwise, or from the environment with `--from-env`. Rejected
+  credentials are not saved, and an existing file is replaced only with
+  `--force`. `cinode schema` gains `init`.
 
 ## 0.2.0 — 2026-09-24
 
