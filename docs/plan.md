@@ -63,7 +63,7 @@ in the task named.
 src/cinode/
   models/     profiles.py (new)  resumes.py (new)  __init__.py
   resources/  users.py
-  cli/        users.py  schema.py
+  cli/        users.py  schema.py  _output.py (ResumeIdArg)
 tests/
   support.py            profile_payload, resume_summary_payload, resume_payload
   test_models.py  test_resources.py
@@ -91,8 +91,10 @@ README.md  CHANGELOG.md
 - Nested values come through `AliasPath`, for example
   `AliasPath("profileTranslation", "languageBranch", "language", "culture")`.
 - `SkillRef.keyword_id` is resolved as `Skill.keyword_id` is: top-level `id`
-  first, then `keyword.id`. Reuse the validator's logic rather than copying it,
-  if that can be done without changing `Skill`.
+  first, then `keyword.id`. Move that logic out of `Skill`'s validator into a
+  module-level helper in `models/skills.py`, which both models' validators
+  call. `Skill`'s behaviour does not change, and its existing tests still
+  pass. (Calling `Skill`'s private validator directly fails strict pyright.)
 - Null lists become `[]`, `is_current: None` becomes `False`, and
   `SkillRef.name: None` becomes `""`. Use one shared `mode="before"` validator
   per model for the list fields, not one per field.
@@ -128,8 +130,8 @@ Tests:
   `users profile get <unreadable>` exits 4 or 5 with a `ForbiddenError` or
   `NotFoundError` envelope.
 - [ ] README: the library quick start shows `c.users.profile.get("me")`; the
-  CLI list gains the command; "Version 0.1 covers …" becomes a sentence that
-  covers profiles and resumes. CHANGELOG: an entry under *Unreleased*.
+  CLI list gains the command; "Version 0.1 covers …" gains a sentence that
+  version 0.2 adds profiles. CHANGELOG: an entry under *Unreleased*.
 - [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m "live and
   not slow"`. Commit in two chunks: "Add the profile models", "Add
   users.profile.get and its command".
@@ -138,12 +140,13 @@ Tests:
 
 **Files:** `src/cinode/models/resumes.py`, `models/__init__.py`,
 `src/cinode/resources/users.py`, `src/cinode/cli/users.py`,
-`src/cinode/cli/schema.py`, `tests/support.py` (`resume_summary_payload`,
+`src/cinode/cli/_output.py`, `src/cinode/cli/schema.py`,
+`tests/support.py` (`resume_summary_payload`,
 `resume_payload`), `tests/test_models.py`, `tests/test_resources.py`,
 `tests/live/test_acceptance.py`, `README.md`, `CHANGELOG.md`.
 
-**Consumes:** the patterns from Task 1 (the shared list validator, the
-`AliasPath` style, the CLI callback for a one-command group).
+**Consumes:** the patterns from Task 1 (the shared list validator and the
+`AliasPath` style).
 
 **Produces:**
 - `ResumeSummary`, `Resume(ResumeSummary)` and `ResumeBlock`, as in the
@@ -160,8 +163,9 @@ Tests:
   - Wired in as `Users.resumes`.
 - CLI:
   - `cinode users resumes list <user>`, whose help carries the same note.
-  - `cinode users resumes get <user> <resume-id>`, where `<resume-id>` is an
-    `int` argument with `min=1`, like `KeywordIdArg`.
+  - `cinode users resumes get <user> <resume-id>`, where `<resume-id>` is
+    `ResumeIdArg`, an `int` argument with `min=1` defined in `cli/_output.py`
+    beside `KeywordIdArg`.
   - Both take `--raw` and `--jsonl`.
 - `cinode schema` gains `resume` and `resume-summary`.
 
@@ -187,7 +191,7 @@ Tests:
   `.id` and a non-empty `.blocks`. If it is empty, that half is skipped with
   `pytest.skip` and a message that names no data.
 - [ ] README: the quick start and the CLI list gain the resume calls, with the
-  empty-list note. CHANGELOG: the entry under *Unreleased* covers resumes.
+  empty-list note, and the version sentence adds resumes. CHANGELOG: the entry under *Unreleased* covers resumes.
 - [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
   (the slow test included, since this is the last task). Commit in two chunks:
   "Add the resume models", "Add users.resumes and its commands".
@@ -200,5 +204,3 @@ Tests:
       clean, and the default test run takes under two seconds.
 - [ ] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
       profile.
-- [ ] `cinode users profile get me | wc -c` is a small fraction of the same
-      command with `--raw`.

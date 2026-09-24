@@ -6,8 +6,9 @@ later project), and the CLI is meant to be driven by chat agents. Humans come
 second.
 
 Version 0.1 covers skills, plus the users, teams and keywords needed to reach
-them. Version 0.2 adds user profiles (the CV data) and resumes. The structure is built so the rest of the API can be added without breaking what
-is already there.
+them. Version 0.2 adds user profiles (the CV data) and resumes. The structure
+is built so the rest of the API can be added without breaking what is already
+there.
 
 ## Goals
 
@@ -91,7 +92,9 @@ The spec is wrong about resumes in two ways, noted below.
   `training`, `references`, `extSkills`, `commitments`) and a `presentation`.
   Its `skills` hold the same keywords and levels as `users/{u}/skills`, each
   with change history and synonyms added (325 KB against 68 KB), and every
-  work experience repeats its skills in full.
+  work experience repeats its skills in full. In those nested skills, as in
+  `users/{u}/skills`, `id` is the keyword id (it equals `keyword.id` in all
+  72 checked).
 - **Translations.** The texts of a section element sit in its `translations`
   array, one entry per profile translation, each with a `profileTranslationId`
   and the language at `profileTranslation.languageBranch.language.culture`
@@ -357,7 +360,12 @@ live checks use, so their shapes are known only from the spec.
 ever returns one, fits without a change. Every text entry has
 `profile_translation_id: int | None` (`profileTranslationId`) and
 `language: str | None` (`profileTranslation.languageBranch.language.culture`),
-plus its own texts. All text fields are `str | None`.
+plus its own texts.
+
+**Types.** Every `id` is a required `int`, as for every entity. Text fields
+(titles, descriptions, names, `culture`, `language`) are `str | None` unless
+the table says otherwise, and other ids (`language_id`,
+`profile_translation_id`) are `int | None`.
 
 - `Presentation`: `id`, `translations: list[PresentationText]`.
   `PresentationText` adds `title`, `description` and `personal_description`
@@ -385,14 +393,17 @@ Null translation and skill arrays become `[]`, as the sections do.
   `template_id` (`template.id`), `template_name` (`template.title`), `created`
   (`created.time`), `updated` (`updated.time`), `is_public: bool` (null →
   `False`), `profile_translation_id`, `view_url` (`viewUrl`) and
-  `public_view_url` (`publicViewUrl`).
+  `public_view_url` (`publicViewUrl`). `template_id` and
+  `profile_translation_id` are `int | None`, `created` and `updated` are
+  `datetime | None`, and the texts and URLs are `str | None`.
 - `Resume(ResumeSummary)`: adds `blocks: list[ResumeBlock]` from
   `resume.blocks`, in Cinode's order (null → `[]`). The template and PDF
   settings, and the blocks repeated under named keys, are left out; `.raw`
   holds them.
 - `ResumeBlock`: `block_id: str` (`blockId`), `block_type: int | None`
-  (`blockType`, an open enum like `keyword_type`), `name`
-  (`friendlyBlockName`), `heading`, `order: int | None`, the inline texts
+  (`blockType`, an open enum like `keyword_type`), `name: str | None`
+  (`friendlyBlockName`), `heading: str | None`, `order: int | None`, the
+  inline texts
   `title`, `description`, `personal_description` and `text` (all
   `str | None`, set only on blocks that carry their content inline), and
   `items: list[dict[str, Any]]` from `data` (null → `[]`).
@@ -400,7 +411,10 @@ Null translation and skill arrays become `[]`, as the sections do.
 **Block items are passed through untouched.** Their shape depends on the block
 type and the template, and no enum names the types, so typing them would be
 guesswork checked against one account. They are the one place where output
-keeps Cinode's camelCase keys. Typing an item kind later would change `items`'
+keeps Cinode's camelCase keys. `block_id` is required like any entity id, and
+an item that is not an object fails the parse; both were true of every block
+seen, and a resume that breaks them raises `UnexpectedResponseError` rather
+than being half read. Typing an item kind later would change `items`'
 type, which is breaking, so it would come as a new field beside `items`.
 
 ## Transport
