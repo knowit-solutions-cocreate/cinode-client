@@ -90,8 +90,11 @@ def decode_basic(basic: str) -> tuple[str, str] | None:
 
 def env_options(env: Mapping[str, str]) -> tuple[str, float]:
     """The base URL and timeout from `CINODE_BASE_URL` and `CINODE_TIMEOUT`, or the defaults."""
-    base_url = (env.get("CINODE_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
-    return base_url, _timeout(env.get("CINODE_TIMEOUT"))
+    return _env_base_url(env), _timeout(env.get("CINODE_TIMEOUT"))
+
+
+def _env_base_url(env: Mapping[str, str]) -> str:
+    return (env.get("CINODE_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
 
 
 @dataclass(frozen=True)
@@ -182,16 +185,15 @@ class Settings:
         The environment wins over the file as a whole: when it holds any
         credentials, even half a pair, the file is not opened. `base_url` and
         `timeout` fall back to the environment, then the defaults, whatever
-        the credentials' source.
+        the credentials' source. Each is read from the environment only when
+        its argument is missing, so a passed value never fails on a bad one.
         """
         env = os.environ if env is None else env
         if (access_id is None) != (access_secret is None):
             raise ValueError("Pass both access_id and access_secret, or neither.")
-        if base_url is None or timeout is None:
-            env_base_url, env_timeout = env_options(env)
-            base_url = env_base_url if base_url is None else base_url
-            timeout = env_timeout if timeout is None else timeout
-        base_url = base_url.rstrip("/")
+        base_url = _env_base_url(env) if base_url is None else base_url.rstrip("/")
+        if timeout is None:
+            timeout = _timeout(env.get("CINODE_TIMEOUT"))
 
         if access_id is not None and access_secret is not None:
             return cls.from_credentials(
