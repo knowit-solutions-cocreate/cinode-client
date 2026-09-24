@@ -1,9 +1,18 @@
+from collections.abc import Callable
+
 import httpx
 import pytest
 import respx
-from support import make_jwt, skill_payload
+from support import (
+    make_jwt,
+    profile_payload,
+    resume_payload,
+    resume_summary_payload,
+    skill_payload,
+)
 
 from cinode import Cinode
+from cinode.models import CinodeModel, Profile, Resume, ResumeSummary
 
 
 def test_me_resolves_to_the_token_user(client: Cinode, api: respx.MockRouter) -> None:
@@ -13,6 +22,50 @@ def test_me_resolves_to_the_token_user(client: Cinode, api: respx.MockRouter) ->
     [skill] = client.users.skills.list("me")
     assert route.called
     assert (skill.keyword_id, skill.user_id) == (22070, 1001)
+
+
+@pytest.mark.parametrize(
+    ("call", "path", "body", "model"),
+    [
+        (lambda c: c.users.profile.get("me"), "profile", profile_payload(), Profile),
+        (
+            lambda c: c.users.resumes.list("me"),
+            "resumes",
+            [resume_summary_payload()],
+            ResumeSummary,
+        ),
+        # The content comes from `resume.blocks`; `resumes/7/dynamic` is never called.
+        (lambda c: c.users.resumes.get("me", 7), "resumes/7", resume_payload(), Resume),
+    ],
+)
+def test_profile_and_resume_paths(
+    client: Cinode,
+    api: respx.MockRouter,
+    call: Callable[[Cinode], CinodeModel | list[CinodeModel]],
+    path: str,
+    body: object,
+    model: type[CinodeModel],
+) -> None:
+    api.get(f"/v0.1/companies/99/users/1001/{path}").mock(
+        return_value=httpx.Response(200, json=body)
+    )
+    result = call(client)
+    [parsed] = result if isinstance(result, list) else [result]
+    assert isinstance(parsed, model)
+    assert [c.request.url.path for c in api.calls if "/token" not in c.request.url.path] == [
+        f"/v0.1/companies/99/users/1001/{path}"
+    ]
+    if isinstance(parsed, Resume):
+        assert [block.block_id for block in parsed.blocks] == ["b-1", "b-2", "b-3"]
+
+
+@pytest.mark.parametrize("resume_id", [True, 0, "5"])
+def test_a_bad_resume_id_raises_before_any_request(
+    client: Cinode, api: respx.MockRouter, resume_id: object
+) -> None:
+    with pytest.raises(ValueError):
+        client.users.resumes.get("me", resume_id)  # pyright: ignore[reportArgumentType]
+    assert not api.calls
 
 
 def test_the_first_token_fetch_is_retried(client: Cinode, api: respx.MockRouter) -> None:
