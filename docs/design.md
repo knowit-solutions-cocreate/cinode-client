@@ -32,9 +32,9 @@ there.
   library. This design makes that wrapper thin; it does not build it.
 - **Skill sets.** `GET companies/{cid}/skill-sets` returns 403 for a non-admin
   owner and there is no per-set read. It cannot work from an ordinary account.
-- **Profile translations other than the default.** Cinode returns each profile
-  in its default translation only, and no parameter or path selects another
-  (verified 2026-09-24). See *Profiles and resumes*.
+- **Choosing a profile translation.** No parameter or path selects one. The
+  profile returns the texts that exist, labelled by language, and the caller
+  picks. See *Profiles and resumes*.
 - **Async.** A sync client covers the CLI and a first MCP server. An async
   transport can be added later behind the same resource classes (see
   *Extending*).
@@ -83,8 +83,8 @@ public) is a reference, not an input to a build step. It is unreliable:
 
 ### Profiles and resumes
 
-Verified against the live API on 2026-09-24, across one team's 56 members.
-The spec is wrong about resumes in two ways, noted below.
+Verified against the live API on 2026-09-24, across one team's 56 members (50
+readable). The spec is wrong about resumes in two ways, noted below.
 
 - **`users/{u}/profile`** (`CompanyUserProfileFullModel`) is large: about
   500 KB for a median profile, 1.6 MB at most. It holds nine section arrays
@@ -96,10 +96,24 @@ The spec is wrong about resumes in two ways, noted below.
   `users/{u}/skills`, `id` is the keyword id (it equals `keyword.id` in all
   72 checked).
 - **Translations.** The texts of a section element sit in its `translations`
-  array, one entry per profile translation, each with a `profileTranslationId`
-  and the language at `profileTranslation.languageBranch.language.culture`
-  (`"sv-SE"`). Most profiles have two or more translations, but the API returns
-  only the default one's texts, and nothing selects another.
+  array, one entry per language that has text for it, each with a
+  `profileTranslationId` and the language at
+  `profileTranslation.languageBranch.language.culture` (`"sv-SE"`, always
+  populated, and distinct within an element). 41 of 50 profiles have two or
+  more translations. Elements then hold one or two entries: fewer than the
+  profile's translations when a language has no text, and never more than
+  two, even in profiles with three or four. Empty strings occur inside
+  entries (`personalDescription: ""`), as well as nulls.
+- **Employers** (41 of 50 profiles, 169 elements): `startDate`, `endDate`
+  (null when current), `isCurrent`, and texts `name`, `title` and
+  `description` in `translations`.
+- **Training** (35 of 50 profiles, 170 elements): `trainingType` (0 course,
+  1 certification, from the spec's prose enum), `year`, `expireDate` and
+  `code` at the top level; `title`, `description`, `issuer` and `supplier` in
+  `translations`. There are no start or end dates.
+- `references`, `extSkills` and `commitments` are used by few profiles, and
+  loosely: `commitments` held publications and `extSkills` free-form notes on
+  the profiles seen.
 - **`users/{u}/resumes`** lists a user's resumes, with metadata only
   (`CompanyUserResumeBaseModel`, about 1 KB each).
 - **`users/{u}/resumes/{id}` returns the content too**, which the spec does not
@@ -342,25 +356,27 @@ holds. Adding a section later is an added field, so it breaks nothing.
 |---|---|---|
 | `id: int` | `id` | the profile's id |
 | `user_id: int \| None` | `companyUserId` | |
-| `language: str \| None` | `profileTranslation.languageBranch.language.culture` | the default translation, `"sv-SE"` |
+| `language: str \| None` | `profileTranslation.languageBranch.language.culture` | the profile's default translation, `"sv-SE"` |
 | `created: datetime \| None` | `createdWhen` | |
 | `updated: datetime \| None` | `updatedWhen` | |
 | `presentation: Presentation \| None` | `presentation` | |
 | `work_experience: list[WorkExperience]` | `workExperience` | null → `[]` |
 | `education: list[Education]` | `education` | null → `[]` |
 | `languages: list[ProfileLanguage]` | `languages` | null → `[]` |
+| `employers: list[Employer]` | `employers` | null → `[]` |
+| `training: list[Training]` | `training` | null → `[]` |
 
 **Left out, on purpose:** the profile's `skills` (the same data as
-`users.skills.list`, at five times the size), and `employers`, `training`,
-`references`, `extSkills` and `commitments`, which are empty on the profile the
-live checks use, so their shapes are known only from the spec.
+`users.skills.list`, at five times the size), and `references`, `extSkills`
+and `commitments`, which few profiles use and whose meaning varies.
 
 **Translations stay as lists.** Each element that has texts keeps a
-`translations: list[...]`, never flattened, so a second translation, if Cinode
-ever returns one, fits without a change. Every text entry has
+`translations: list[...]` with one entry per language that has text, in
+Cinode's order, never flattened and never filled in. Every text entry has
 `profile_translation_id: int | None` (`profileTranslationId`) and
 `language: str | None` (`profileTranslation.languageBranch.language.culture`),
-plus its own texts.
+plus its own texts. Texts are passed through as they come: an empty string
+stays `""` and a null stays `None`; callers treat both as missing.
 
 **Types.** Every `id` is a required `int`, as for every entity. Text fields
 (titles, descriptions, names, `culture`, `language`) are `str | None` unless
@@ -383,6 +399,13 @@ the table says otherwise, and other ids (`language_id`,
 - `ProfileLanguage`: `id`, `language_id` (`language.languageId`), `name`
   (`language.name`), `culture` (`language.culture`), `level: int | None`.
   The level scale is not documented and is passed through as it comes.
+- `Employer`: `id`, `start_date`, `end_date`, `is_current: bool` (null →
+  `False`), `translations: list[EmployerText]`. `EmployerText` adds `name`,
+  `title` and `description`.
+- `Training`: `id`, `training_type: int | None` (`trainingType`, an open enum:
+  0 course, 1 certification), `year: int | None`, `expires: datetime | None`
+  (`expireDate`), `code`, `translations: list[TrainingText]`. `TrainingText`
+  adds `title`, `description`, `issuer` and `supplier`.
 
 Null translation and skill arrays become `[]`, as the sections do.
 
@@ -565,7 +588,8 @@ Rules for growth that keep existing callers working:
    break; each break is recorded in `CHANGELOG.md`.
 
 Areas likely to come next, in rough order: user roles, team managers, keyword
-lookups, and the profile sections v0.2 leaves out.
+lookups, and the profile sections v0.2 leaves out (`references`, `extSkills`,
+`commitments`).
 
 ## Data handling
 
