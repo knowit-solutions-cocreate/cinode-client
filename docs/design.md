@@ -6,7 +6,8 @@ later project), and the CLI is meant to be driven by chat agents. Humans come
 second.
 
 Version 0.1 covers skills, plus the users, teams and keywords needed to reach
-them. Version 0.2 adds user profiles (the CV data) and resumes. The structure
+them. Version 0.2 adds user profiles (the CV data) and resumes. Version 0.3
+adds a config file for the credentials, written by `cinode init`. The structure
 is built so the rest of the API can be added without breaking what is already
 there.
 
@@ -156,7 +157,7 @@ Each layer depends only on the layer below it. Nothing imports the CLI.
 src/cinode/
   __init__.py          public API: Cinode, models, errors, __version__
   _client.py           Cinode: construction, identity, resource wiring
-  _config.py           credentials and settings from args or environment
+  _config.py           credentials and settings from args, environment or config file
   _transport.py        Transport: get(), retries, error mapping
   _auth.py             TokenManager: exchange, JWT claims, expiry
   _ratelimit.py        sliding-window limiter with an injectable clock, and Retry-After parsing
@@ -181,6 +182,7 @@ src/cinode/
   cli/
     __init__.py        typer app, entry point
     _output.py         JSON/JSONL emitting, error envelope, exit codes
+    config.py          `cinode init` (the only code that writes a file) and `cinode config show`
     users.py  teams.py  keywords.py  schema.py
 ```
 
@@ -193,7 +195,8 @@ export.
 ```python
 from cinode import Cinode
 
-c = Cinode.from_env()
+c = Cinode.from_config()                  # environment, else the config file
+c = Cinode.from_env()                     # environment only
 c = Cinode(access_id="...", access_secret="...")
 
 c.company_id                              # from the JWT
@@ -514,14 +517,109 @@ failure can be reported to Cinode support.
 
 ## Configuration
 
-| Setting | Argument | Environment |
-|---|---|---|
-| credentials | `access_id`, `access_secret` | `CINODE_ACCESS_ID` + `CINODE_ACCESS_SECRET`, or `CINODE_BASIC` |
-| base URL | `base_url` | `CINODE_BASE_URL` (tests only) |
-| timeout | `timeout` | `CINODE_TIMEOUT` |
+| Setting | Argument | Environment | Config file |
+|---|---|---|---|
+| credentials | `access_id`, `access_secret` | `CINODE_ACCESS_ID` + `CINODE_ACCESS_SECRET`, or `CINODE_BASIC` | `access_id`, `access_secret` |
+| config file location | `path` (`from_config`) | `CINODE_CONFIG` | |
+| base URL | `base_url` | `CINODE_BASE_URL` (tests only) | |
+| timeout | `timeout` | `CINODE_TIMEOUT` | |
 
 The company id and user id are never configured; they come from the token.
 Secrets are never logged and never shown in `repr`.
+
+### Where credentials come from
+
+There are three constructors, and each reads only what its name says:
+
+- `Cinode(access_id, access_secret)` uses its arguments.
+- `Cinode.from_env(env=None)` reads the environment only, as in v0.1.
+- `Cinode.from_config(*, env=None, path=None)` reads the environment, and
+  the config file only when the environment holds no credentials. The CLI
+  uses this one, and so should the MCP server.
+
+In `from_config`, **the environment wins as a whole.** If it holds
+credentials (the pair, or `CINODE_BASIC`), the file is not opened, so a broken
+file cannot break a caller who sets the environment. Half a pair is still an
+error and never falls back to the file, which may belong to another account.
+With no credentials in either, `from_config` raises `AuthError`: "No Cinode
+credentials: none in the environment, and no file at `<path>`. Run
+`cinode init`, or set …". `CINODE_BASE_URL` and `CINODE_TIMEOUT` apply
+whichever source the credentials came from.
+
+### The config file
+
+- **Location:** `$CINODE_CONFIG` if set (a file path, `~` expanded), else
+  `$XDG_CONFIG_HOME/cinode/config.toml` if `XDG_CONFIG_HOME` is an absolute
+  path, else `~/.config/cinode/config.toml`, on macOS as elsewhere.
+- **Format:** TOML with two flat, top-level string keys, and nothing else
+  read:
+
+  ```toml
+  # Written by `cinode init`. It holds a secret: keep it private (chmod 600).
+  access_id = "0123abcd.app.cinode.com"
+  access_secret = "..."
+  ```
+
+  Unknown keys are ignored, so a file written by a later version still loads.
+  A file that cannot be read, is not valid TOML, or lacks either key as a
+  non-empty string raises `AuthError`, whose message names the file and the
+  key but never a value.
+- **The secret is stored in plain text,** protected by file permissions, as
+  `gh`, `aws` and `.netrc` do. An OS keychain would add a dependency and fail
+  where agents run (headless, over SSH, in containers).
+- **Permissions are reported, not enforced.** `cinode init` creates the file
+  with mode `0600` and its directory with `0700`. Loading a file that others
+  can read neither fails nor prints a warning (stderr is for errors only);
+  `cinode config show` reports it.
+- **One account.** Named profiles, if they are ever needed, would be added as
+  TOML tables beside the flat keys, which stay the default account.
+- `tomllib` reads the file, so there is no new dependency. The library only
+  ever reads it; the writer lives in the CLI (see *Data handling*).
+
+### `cinode init`
+
+Checks a set of credentials against Cinode and saves them to the config file.
+
+1. If the file exists and `--force` is not given, it fails at once (exit 1)
+   and asks for nothing.
+2. It takes the credentials from one of three places:
+   - `--from-env`: the pair in the environment, or `CINODE_BASIC` decoded and
+     split at its first `:`. This is the one-step migration for users who
+     export credentials today.
+   - On a terminal: `--access-id`, or a prompt, for the AccessId, then a
+     hidden prompt for the secret. Prompts are written to stderr.
+   - Otherwise (an agent or script): `--access-id ID`, with the secret as the
+     first line of stdin.
+
+   The secret is never a command-line option, since arguments show up in
+   `ps` and in shell history. `--from-env` together with `--access-id`, no
+   `--access-id` without a terminal, or an empty secret is a usage error
+   (exit 2), raised before any request.
+3. It verifies them with `whoami()`, a GET like every other call, and honours
+   `CINODE_BASE_URL` and `CINODE_TIMEOUT`. If Cinode rejects them, nothing is
+   written (exit 3).
+4. It writes the file atomically: a temporary file in the same directory,
+   created with mode `0600` from the start (never `chmod`ed afterwards), then
+   renamed over the target.
+5. It prints `{"path", "access_id", "company_id", "user_id"}`.
+
+### `cinode config show`
+
+Reports where the credentials come from, without a network call; `cinode
+whoami` is the online check. It resolves credentials exactly as every other
+command does, so when there are none, or the file is malformed, it fails the
+same way (exit 3), with a message that names the path. On success it prints:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `source` | `"env" \| "file"` | where the credentials came from |
+| `access_id` | `str \| null` | the AccessId in use; decoded from `CINODE_BASIC` when that is the source, `null` if it does not decode |
+| `path` | `str` | the config file's location, whether or not it was used |
+| `file_exists` | `bool` | |
+| `file_mode` | `str \| null` | the permission bits as octal, `"0600"`; `null` without a file |
+| `file_private` | `bool \| null` | no group or other permission bits set; `null` without a file |
+
+The secret is never part of any output.
 
 ## CLI
 
@@ -545,6 +643,8 @@ cinode teams skills <team-id>          # cinode.ops.team_skills
 cinode teams profiles <team-id>        # cinode.ops.team_profiles
 cinode keywords search <term>
 cinode schema [<model>]                # JSON Schema for output models
+cinode init [--access-id ID] [--from-env] [--force]
+cinode config show
 ```
 
 `<user>` is a numeric id or `me`.
@@ -584,6 +684,9 @@ cinode schema [<model>]                # JSON Schema for output models
 - `--raw` on `users profile get` and `users resumes get` writes Cinode's whole
   payload, which is hundreds of kilobytes. The default output is the lean
   model.
+- `cinode init` and `cinode config show` take neither `--raw` nor `--jsonl`.
+  Their outputs are in `cinode schema` as `init` and `config`. `init`'s
+  prompts go to stderr, so stdout still holds only its JSON object.
 - `--table` output for humans is planned for a later version (see the
   roadmap).
 
@@ -606,7 +709,7 @@ Rules for growth that keep existing callers working:
 6. Versioning follows semver. While the version is 0.x, minor versions may
    break; each break is recorded in `CHANGELOG.md`.
 
-Areas likely to come next, in rough order: user roles, team managers, keyword
+Areas likely to come next, in rough order: `--table` output, user roles, team managers, keyword
 lookups, and the profile sections v0.2 leaves out (`references`, `extSkills`,
 `commitments`).
 
@@ -619,8 +722,11 @@ levels) is personnel data.
 - Test fixtures are synthetic, shaped like real responses. They contain no real
   colleagues.
 - Live tests read only the account owner's own data, plus team membership, and
-  write nothing to disk.
-- The library never writes files. The CLI writes only to stdout.
+  write nothing to disk, except the `cinode init` round trip, which writes a
+  config file to a temporary directory and deletes it in teardown.
+- The library never writes files. The CLI writes only to stdout, except
+  `cinode init`, which writes the config file. The config file holds a
+  secret, not personnel data.
 
 ## Testing
 
@@ -640,7 +746,14 @@ What earns a unit test:
   projections of a profile and a resume, including what they leave out.
 - **Resources and ops:** `me` resolution, keyword encoding, 403/404 skipping in
   `team_skills` and `team_profiles`.
-- **CLI:** the exact JSON output shape, the error envelope and the exit codes.
+- **Configuration:** the precedence between environment and file, the config
+  file's location, and malformed files.
+- **CLI:** the exact JSON output shape, the error envelope and the exit codes;
+  `cinode init`'s file mode, its verify-before-write and its refusal to
+  overwrite.
+
+Unit tests never see the developer's own config file: an autouse fixture
+points `CINODE_CONFIG` at a path that does not exist.
 
 Everything else is covered by the live acceptance suite, which exercises the
 whole stack.
@@ -668,6 +781,7 @@ normal use:
 | `cinode users resumes get me <first id>` | `.id` is that id; `.blocks` is non-empty (skipped if the owner has no resumes) |
 | `cinode teams skills 9873` | *slow*: every member is in `members` or `skipped`; the owner is in `members` |
 | `cinode teams profiles 9873` | *slow*: the same, with the owner's `.profile.user_id` matching |
+| `cinode init --from-env`, then `cinode whoami` with only `CINODE_CONFIG` set | `.user_id` matches; the file has mode `0600` (needs credentials in the environment; the file is deleted in teardown) |
 
 The ids default to the author's (user 158773, team 9873, keyword 22070 "Python"
 with synonym 2930) and can be overridden with `CINODE_TEST_USER_ID`,
