@@ -258,17 +258,17 @@ of `team_skills.py` in this task; nothing new imports from `team_skills.py`.
 - `cinode schema` gains `team-profiles`.
 
 Tests:
-- [ ] With members 1, 2 and 3, where 2's profile returns 403 and 3's returns
+- [x] With members 1, 2 and 3, where 2's profile returns 403 and 3's returns
   404: 1 is in `members` with its `Profile`, and `skipped` is
   `[(2, "forbidden"), (3, "not_found")]`. One new test, beside the existing
   `team_skills` test, which stays as it is.
-- [ ] **Review focus 7:** the existing `team_skills` tests pass unedited.
-- [ ] Live, `@slow`: `teams profiles <team>`. The unique set of member and
+- [x] **Review focus 7:** the existing `team_skills` tests pass unedited.
+- [x] Live, `@slow`: `teams profiles <team>`. The unique set of member and
   skipped ids equals the unique ids from `teams members list`, and the
   owner's entry in `members` has `.profile.user_id` equal to the owner.
-- [ ] README: the quick start and the CLI list gain `team_profiles`.
+- [x] README: the quick start and the CLI list gain `team_profiles`.
   CHANGELOG: the *Unreleased* entry covers it.
-- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
+- [x] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
   (the slow tests included, since this is the last task). Commit in two
   chunks: "Share the team member loop between operations", "Add the
   team_profiles operation and command".
@@ -277,7 +277,7 @@ Tests:
 
 ## Done when
 
-- [ ] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are
+- [x] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are
       clean, and the default test run takes under two seconds.
-- [ ] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
+- [x] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
       profile.

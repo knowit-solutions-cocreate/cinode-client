@@ -19,7 +19,7 @@ from cinode.models import (
     UserSummary,
     WhoAmI,
 )
-from cinode.ops import TeamSkills
+from cinode.ops import TeamProfiles, TeamSkills
 
 MODELS: dict[str, type[CinodeModel]] = {
     "keyword": Keyword,
@@ -29,6 +29,7 @@ MODELS: dict[str, type[CinodeModel]] = {
     "skill": Skill,
     "team": Team,
     "team-member": TeamMember,
+    "team-profiles": TeamProfiles,
     "team-skills": TeamSkills,
     "user": User,
     "user-summary": UserSummary,

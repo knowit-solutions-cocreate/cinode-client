@@ -144,3 +144,19 @@ def test_teams_skills(cinode: Cinode, jq: Jq, owner: Owner) -> None:
     assert same, "members and skipped do not match teams members list"
     found = jq("any(.members[]; .user.id == $id)", out, id=owner.user_id)
     assert found, "owner not in team skills members"
+
+
+@pytest.mark.slow
+def test_teams_profiles(cinode: Cinode, jq: Jq, owner: Owner) -> None:
+    listed = json.loads(ok(cinode, "teams", "members", "list", owner.team_id))
+    out = ok(cinode, "teams", "profiles", owner.team_id)
+    same = jq(
+        "([.members[].user.id] + [.skipped[].user.id] | unique) == ($ids | unique)",
+        out,
+        ids=[member["user_id"] for member in listed],
+    )
+    assert same, "members and skipped do not match teams members list"
+    found = jq(
+        "any(.members[]; .user.id == $id and .profile.user_id == $id)", out, id=owner.user_id
+    )
+    assert found, "owner's profile not in team profiles members"
