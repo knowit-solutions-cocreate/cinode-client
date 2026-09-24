@@ -1,7 +1,14 @@
 import pytest
-from support import USER_ID, keyword_payload, member_payload, profile_payload, skill_payload
+from support import (
+    USER_ID,
+    keyword_payload,
+    member_payload,
+    profile_payload,
+    resume_payload,
+    skill_payload,
+)
 
-from cinode.models import CinodeModel, Keyword, Profile, Skill, TeamMember
+from cinode.models import CinodeModel, Keyword, Profile, Resume, Skill, TeamMember
 
 
 def test_skill_maps_a_real_shaped_payload() -> None:
@@ -144,3 +151,63 @@ def test_profile_dumps_a_lean_projection() -> None:
     }
     assert profile.created is not None and profile.created.tzinfo is None
     assert profile.raw["skills"]
+
+
+def test_resume_dumps_a_lean_projection() -> None:
+    no_inline_texts = {
+        "title": None,
+        "description": None,
+        "personal_description": None,
+        "text": None,
+    }
+    resume = Resume.parse(resume_payload())
+    assert resume.model_dump(mode="json") == {
+        "id": 7,
+        "user_id": USER_ID,
+        "title": "Ada Example CV",
+        "description": None,
+        "language": "sv-SE",
+        "template_id": 31,
+        "template_name": "Standard",
+        "created": "2026-01-02T03:04:05.123456",
+        "updated": "2026-02-03T04:05:06",
+        "is_public": False,
+        "profile_translation_id": 501,
+        "view_url": "https://app.test/resumes/7",
+        "public_view_url": None,
+        "blocks": [
+            {
+                "block_id": "b-1",
+                "block_type": 3,
+                "name": "WorkExperiences",
+                "heading": "Uppdrag",
+                "order": 0,
+                **no_inline_texts,
+                "items": [
+                    {"id": "7001", "employer": "Exempel AB", "startDate": "2024-01-01"},
+                    {"id": "7002", "employer": "Exempel AB", "isCurrent": True},
+                ],
+            },
+            {
+                "block_id": "b-2",
+                "block_type": 9,
+                "name": "Presentation",
+                "heading": "Om mig",
+                "order": 1,
+                "title": "Utvecklare",
+                "description": "Skriver kod.",
+                "personal_description": "",
+                "text": None,
+                "items": [],
+            },
+            {
+                "block_id": "b-3",
+                "block_type": 99,
+                "name": None,
+                "heading": None,
+                "order": 2,
+                **no_inline_texts,
+                "items": [],
+            },
+        ],
+    }

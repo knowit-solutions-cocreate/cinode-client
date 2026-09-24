@@ -147,7 +147,7 @@ Tests:
 - `models/__init__` exports all three.
 
 Tests:
-- [ ] **Review focus 1 and 4:** a synthetic `resume_payload()` maps to the
+- [x] **Review focus 1 and 4:** a synthetic `resume_payload()` maps to the
   expected `model_dump(mode="json")`, checked as one exact dict. The payload
   has:
   - a `resume` with two style keys (for example `pdfMarginTop` and
@@ -158,7 +158,7 @@ Tests:
     `description` and `personalDescription` and no `data` (so `items == []`),
     and one with `data: null` and a `blockType` not seen live (for example
     99)
-- [ ] Commit: "Add the resume models".
+- [x] Commit: "Add the resume models".
 
 ### Task 3: Profile and resume calls, and their commands
 
