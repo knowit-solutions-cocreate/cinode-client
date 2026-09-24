@@ -185,8 +185,9 @@ class Settings:
         The environment wins over the file as a whole: when it holds any
         credentials, even half a pair, the file is not opened. `base_url` and
         `timeout` fall back to the environment, then the defaults, whatever
-        the credentials' source. Each is read from the environment only when
-        its argument is missing, so a passed value never fails on a bad one.
+        the credentials' source. With credentials from the arguments or the
+        file, each is read from the environment only when its argument is
+        missing; `from_env` reads both whenever it is used.
         """
         env = os.environ if env is None else env
         if (access_id is None) != (access_secret is None):
