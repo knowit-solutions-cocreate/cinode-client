@@ -44,6 +44,8 @@ def show() -> None:
         mode: int | None = path.stat().st_mode
     except OSError:
         mode = None
+    if mode is not None and not stat.S_ISREG(mode):
+        mode = None  # a directory or other non-file is not a credentials file
     report = ConfigReport(
         source=settings.source,
         access_id=settings.access_id,
