@@ -108,3 +108,116 @@ def member_payload(**overrides: object) -> dict[str, object]:
         "links": [],
     }
     return payload | overrides
+
+
+def _translation(profile_translation_id: int, culture: str) -> dict[str, object]:
+    """The `profileTranslation` Cinode nests in a profile and in each text entry."""
+    return {
+        "id": profile_translation_id,
+        "languageBranch": {"id": 1, "language": {"languageId": 1, "culture": culture}},
+    }
+
+
+def profile_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic profile shaped like Cinode's `CompanyUserProfileFullModel`, much reduced."""
+    sv, en = _translation(501, "sv-SE"), _translation(502, "en-GB")
+    payload: dict[str, object] = {
+        "id": 5005,
+        "companyId": COMPANY_ID,
+        "companyUserId": USER_ID,
+        "profileTranslation": sv,
+        "profileTranslations": [sv, en],
+        "createdWhen": "2026-01-02T03:04:05.1234567",
+        "updatedWhen": "2026-03-04T05:06:07",
+        "presentation": {
+            "id": 6001,
+            "translations": [
+                {
+                    "profileTranslationId": 501,
+                    "profileTranslation": sv,
+                    "title": "Utvecklare",
+                    "description": "Skriver kod.",
+                    "personalDescription": "",
+                },
+                {
+                    "profileTranslationId": 502,
+                    "profileTranslation": en,
+                    "title": "Developer",
+                    "description": "Writes code.",
+                    "personalDescription": "Likes tea.",
+                },
+            ],
+        },
+        "workExperience": [
+            {
+                "id": 7001,
+                "startDate": "2024-01-01T00:00:00",
+                "endDate": None,
+                "isCurrent": True,
+                "translations": [
+                    {
+                        "profileTranslationId": 501,
+                        "profileTranslation": sv,
+                        "employer": "Exempel AB",
+                        "title": "Utvecklare",
+                        "description": None,
+                    }
+                ],
+                "skills": [
+                    skill_payload(
+                        changeHistory=[{"level": 3, "date": "2025-01-01T00:00:00"}],
+                        translations=[{"profileTranslationId": 501}],
+                    )
+                ],
+            }
+        ],
+        "education": None,
+        "languages": [
+            {
+                "id": 8001,
+                "language": {"languageId": 2, "name": "English", "culture": "en"},
+                "level": 5,
+            }
+        ],
+        "employers": [
+            {
+                "id": 9101,
+                "startDate": "2020-01-01T00:00:00",
+                "endDate": "2023-12-31T00:00:00",
+                "isCurrent": None,
+                "translations": [
+                    {
+                        "profileTranslationId": 501,
+                        "profileTranslation": sv,
+                        "name": "Exempel AB",
+                        "title": "Konsult",
+                        "description": "",
+                    }
+                ],
+            }
+        ],
+        "training": [
+            {
+                "id": 9201,
+                "trainingType": 1,
+                "year": 2025,
+                "expireDate": None,
+                "code": "EX-1",
+                "translations": [
+                    {
+                        "profileTranslationId": 501,
+                        "profileTranslation": sv,
+                        "title": "Exempelcertifikat",
+                        "description": None,
+                        "issuer": "Example Institute",
+                        "supplier": None,
+                    }
+                ],
+            }
+        ],
+        "skills": [skill_payload()],
+        "references": [{"id": 9301, "firstName": "Bo"}],
+        "extSkills": [{"id": 9401, "text": "Notes"}],
+        "commitments": [{"id": 9501, "title": "A paper"}],
+    }
+    return payload | overrides
