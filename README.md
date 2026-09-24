@@ -6,8 +6,9 @@ meant for agents first and humans second.
 It is **read-only by construction**: the transport can only issue GET, so there
 is no write path to enable by mistake. Version 0.1 covers skills, plus the
 users, teams and keywords needed to reach them. See
-[`docs/design.md`](docs/design.md) for the design and
-[`docs/plan.md`](docs/plan.md) for the plan.
+[`docs/design.md`](docs/design.md) for the design,
+[`docs/roadmap.md`](docs/roadmap.md) for what comes next, and
+[`docs/plans/`](docs/plans/) for the plans of released versions.
 
 ## Install
 
