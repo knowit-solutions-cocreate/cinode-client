@@ -210,7 +210,9 @@ here right away, in a small docs PR.
 - **Every agent starts in its own worktree, reviewers included.** Twice a
   reviewer whose working directory was the main checkout moved its `HEAD` by
   accident. The orchestrator starts reviewers with worktree isolation too, so
-  a slip lands in a throwaway worktree.
+  a slip lands in a throwaway worktree. A reviewer reviews in that worktree,
+  with `git switch --detach origin/<branch>`, and makes no second one: the
+  sandbox blocks commands in a worktree outside the agent's own.
 - **Leave nothing running.** Agents stop every process they start before
   replying. `ls` may be aliased to something slow, so they use `command ls`.
 - **Keep shared space clean.** Agents name scratch files and worktrees
@@ -331,7 +333,7 @@ Checks the PR against `docs/design.md` and the task in `docs/plan.md`.
   - Were the docs updated alongside the code?
   - Is anything in the PR beyond the task's scope?
 - Does not change code. It may check out the branch and run the checks.
-- Reviews in a scratch worktree outside the repository, and never checks out
+- Reviews in its own worktree, detached at the PR head, and never checks out
   or modifies the main checkout.
 - Posts one comment with `gh pr review <n> --comment` that starts with
   `**Reviewer (spec)**`. Each finding is numbered, carries a severity
@@ -355,7 +357,7 @@ Checks the PR as a senior Python reviewer would.
   - needless complexity
 - Also looks for any path that could send a request other than GET, and for
   real personnel data.
-- Reviews in a scratch worktree outside the repository, and never checks out
+- Reviews in its own worktree, detached at the PR head, and never checks out
   or modifies the main checkout.
 - Does not change code, and posts and replies exactly as the spec reviewer
   does, starting its comment with `**Reviewer (code)**`.
