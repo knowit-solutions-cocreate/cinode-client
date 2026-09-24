@@ -11,6 +11,10 @@ semantic versioning; while the version is 0.x, minor versions may break.
   models, and the commands `cinode users profile get`, `cinode users resumes
   list` and `cinode users resumes get`. `cinode schema` gains `profile`,
   `resume` and `resume-summary`. An empty resume list can mean no access.
+- **Team profiles:** `cinode.ops.team_profiles` fetches every member's lean
+  `Profile`, recording members it may not read in `skipped`, as
+  `team_skills` does. It is also `cinode teams profiles`, and `cinode schema`
+  gains `team-profiles`.
 
 ## 0.1.0 — 2026-09-23
 

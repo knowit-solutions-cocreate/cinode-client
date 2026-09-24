@@ -53,7 +53,7 @@ Secrets are never logged and never shown in `repr`.
 
 ```python
 from cinode import Cinode, ForbiddenError
-from cinode.ops import team_skills
+from cinode.ops import team_profiles, team_skills
 
 with Cinode.from_env() as c:              # or Cinode(access_id=..., access_secret=...)
     me = c.users.get("me")                # User
@@ -71,6 +71,9 @@ with Cinode.from_env() as c:              # or Cinode(access_id=..., access_secr
     result.members                        # list[MemberSkills(user, skills)]
     result.skipped                        # list[Skipped(user, reason)]
 
+    people = team_profiles(c, teams[0].id)  # TeamProfiles
+    people.members                        # list[MemberProfile(user, profile)]
+
     try:
         c.users.skills.list(1)
     except ForbiddenError as error:
@@ -80,7 +83,8 @@ with Cinode.from_env() as c:              # or Cinode(access_id=..., access_secr
 A user is a positive `int` or `"me"`. Every call returns a frozen pydantic model
 with our snake_case field names; `.raw` holds Cinode's payload. An unrated skill
 has `level` `None`, not 0. A 403 is normal: it depends on whose data is asked
-for, and `team_skills` records such members in `skipped` rather than failing.
+for, and `team_skills` and `team_profiles` record such members in `skipped`
+rather than failing.
 
 Errors derive from `CinodeError` (with `status`, `path`, `correlation_id`):
 `AuthError`, `ForbiddenError`, `NotFoundError`, `RateLimitedError`,
@@ -103,15 +107,16 @@ cinode teams list [--match TEXT]
 cinode teams get <team-id>
 cinode teams members list <team-id>
 cinode teams skills <team-id>
+cinode teams profiles <team-id>
 cinode keywords search <term>
 cinode schema [<model>]
 ```
 
 `<user>` is a numeric id or `me`. `--jsonl` writes a list as one object per
 line (every command but `schema`), and `--raw` writes Cinode's payload
-untouched (every command but `teams skills` and `schema`). `cinode schema`
-lists the output models, and `cinode schema skill` prints one model's JSON
-Schema.
+untouched (every command but `teams skills`, `teams profiles` and `schema`).
+`cinode schema` lists the output models, and `cinode schema skill` prints one
+model's JSON Schema.
 
 ```sh
 cinode users skills list me | jq '[.[] | select(.is_rated)] | length'
@@ -133,8 +138,8 @@ cinode teams list --match cocreate | jq '.[].id'
   `status`, `path` and `correlation_id` all `null`, and no rich box drawing.
   The one exception is a group given no subcommand, which prints its help.
   Progress is written only when stderr is a terminal.
-- `teams skills` exits 0 even when members were skipped; they are listed in
-  its `skipped` array.
+- `teams skills` and `teams profiles` exit 0 even when members were skipped;
+  they are listed in the `skipped` array.
 - `users resumes list` gives an empty list, not a 403, for a user whose data
   you cannot read, so an empty list means no resumes, or no access.
   `users profile get` tells the two apart.

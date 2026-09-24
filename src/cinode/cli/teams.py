@@ -1,4 +1,4 @@
-"""`cinode teams …`: teams, their members, and every member's skills."""
+"""`cinode teams …`: teams, their members, and every member's skills or profile."""
 
 import sys
 from typing import Annotated
@@ -7,9 +7,9 @@ import typer
 
 from cinode.cli._output import JsonlOption, RawOption, run
 from cinode.models import Team
-from cinode.ops import MemberSkills, Skipped, team_skills
+from cinode.ops import MemberProfile, MemberSkills, Skipped, team_profiles, team_skills
 
-app = typer.Typer(no_args_is_help=True, help="Teams, their members, and their skills.")
+app = typer.Typer(no_args_is_help=True, help="Teams, their members, and their skills and profiles.")
 members_app = typer.Typer(no_args_is_help=True, help="One team's members.")
 app.add_typer(members_app, name="members")
 
@@ -49,7 +49,7 @@ def list_members(team_id: TeamIdArg, raw: RawOption = False, jsonl: JsonlOption 
     run(lambda c: c.teams.members.list(team_id), raw=raw, jsonl=jsonl)
 
 
-def _progress(done: int, total: int, entry: MemberSkills | Skipped) -> None:
+def _progress(done: int, total: int, entry: MemberSkills | MemberProfile | Skipped) -> None:
     status = f"skipped: {entry.reason}" if isinstance(entry, Skipped) else "read"
     sys.stderr.write(f"{done}/{total} {status} (user {entry.user.id})\n")
 
@@ -59,3 +59,10 @@ def skills(team_id: TeamIdArg, jsonl: JsonlOption = False) -> None:
     """A team and every member's skills. Members that cannot be read are listed in `skipped`."""
     on_progress = _progress if sys.stderr.isatty() else None
     run(lambda c: team_skills(c, team_id, on_progress=on_progress), jsonl=jsonl)
+
+
+@app.command("profiles")
+def profiles(team_id: TeamIdArg, jsonl: JsonlOption = False) -> None:
+    """A team and every member's profile. Members that cannot be read are listed in `skipped`."""
+    on_progress = _progress if sys.stderr.isatty() else None
+    run(lambda c: team_profiles(c, team_id, on_progress=on_progress), jsonl=jsonl)
