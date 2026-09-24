@@ -18,6 +18,14 @@ follows that role's section below.
   the checks. Plain imperative messages, no prefixes, no emoji.
 - **Update `CLAUDE.md` and the docs in the same change** that makes them
   stale. Tick a task's boxes in `docs/plan.md` in that task's PR.
+- **Plans are per version, and archived at release.** `docs/plan.md` holds
+  the plan for the version in progress, and `docs/roadmap.md` lists the
+  versions, one line each. When a version is released, its plan moves
+  unchanged to `docs/plans/v<major>.<minor>.md` (a rename, in its own commit,
+  so `git log --follow` keeps its history), and `docs/plan.md` becomes a stub
+  or the next version's plan. An archived plan is frozen: only its links may
+  be fixed. Before archiving, anything in the plan that is still true about
+  the system moves to a living document (the design, the README or this file).
 - **Few, fast tests.** A test exists only when it pins behaviour the design
   depends on, or behaviour that has already gone wrong. Never write one for
   coverage. The default run finishes in under [2] seconds: inject clocks,
@@ -58,7 +66,8 @@ design can't settle.
 
 **Resuming:** the orchestrator keeps no state of its own. Pull `main`: the
 first unticked task in `docs/plan.md` is next. `gh pr list` and the PR
-comments show which round an open PR is in.
+comments show which round an open PR is in. If `docs/plan.md` has no tasks,
+no version is in progress: ask the human which roadmap entry to plan next.
 
 ## Working agreements
 

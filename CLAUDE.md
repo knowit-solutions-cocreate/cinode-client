@@ -4,7 +4,9 @@ A read-only Python library and CLI for the Cinode API, meant for agents first
 and humans second.
 
 - `docs/design.md` is the design. Read it before changing code.
-- `docs/plan.md` is the roadmap and the task list for the current version.
+- `docs/plan.md` is the task list for the version in progress.
+- `docs/roadmap.md` lists the versions; `docs/plans/` holds the plans of
+  released versions.
 
 Repository: https://github.com/knowit-solutions-cocreate/cinode-client. It is
 **public**.
@@ -24,6 +26,14 @@ Repository: https://github.com/knowit-solutions-cocreate/cinode-client. It is
   `docs/design.md`, `docs/plan.md`, `README.md` or this file out of date, fix
   them in the same PR. When a plan task is done, tick its checkboxes in
   `docs/plan.md` in that task's PR.
+- **Plans are per version, and archived at release.** `docs/plan.md` holds
+  the plan for the version in progress, and `docs/roadmap.md` lists the
+  versions, one line each. When a version is released, its plan moves
+  unchanged to `docs/plans/v<major>.<minor>.md` (a rename, in its own commit,
+  so `git log --follow` keeps its history), and `docs/plan.md` becomes a stub
+  or the next version's plan. An archived plan is frozen: only its links may
+  be fixed. Before archiving, anything in the plan that is still true about
+  the system moves to a living document (the design, the README or this file).
 - **Few, fast tests.** Write a test only when it pins behaviour the design
   depends on, or behaviour that has already gone wrong. Never write one for
   coverage. The default run must finish in **under two seconds**: inject
@@ -141,6 +151,8 @@ The orchestrator keeps no state of its own; the repository holds it. To pick
 up after a break or a lost context:
 
 1. Pull `main`. The first task in `docs/plan.md` with unticked boxes is next.
+   If `docs/plan.md` has no tasks, no version is in progress: ask the human
+   which roadmap entry to plan next.
 2. Run `gh pr list`. If that task already has an open PR, read its comments to
    see which round it is in and what was last triaged. Carry on from there.
 
