@@ -176,3 +176,11 @@ levels) is personnel data.
   team membership, and write nothing to disk.
 - Never commit live output, or paste it into an issue or pull request. `data/`,
   `*.csv` and JSON dumps are git-ignored.
+
+## How this was built
+
+Every change in this repository was written, reviewed and fixed by Claude
+agents, one pull request per plan task, with a main session orchestrating and
+merging. [`CLAUDE.md`](CLAUDE.md) holds the workflow as used here, and
+[`claude-orchestrator-template.md`](claude-orchestrator-template.md) is the
+same workflow as a portable template for other projects.
