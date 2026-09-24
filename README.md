@@ -6,8 +6,9 @@ meant for agents first and humans second.
 It is **read-only by construction**: the transport can only issue GET, so there
 is no write path to enable by mistake. Version 0.1 covers skills, plus the
 users, teams and keywords needed to reach them. Version 0.2 adds user
-profiles (the data behind a CV) and resumes. Version 0.3 reads credentials
-from a credentials file when the environment has none. See
+profiles (the data behind a CV) and resumes. Version 0.3 adds `cinode init`,
+which saves credentials to a credentials file, read when the environment has
+none. See
 [`docs/design.md`](docs/design.md) for the design,
 [`docs/roadmap.md`](docs/roadmap.md) for what comes next, and
 [`docs/plans/`](docs/plans/) for the plans of released versions.
@@ -27,8 +28,31 @@ works from a checkout, but uv may print messages of its own on stderr.
 ## Credentials
 
 The client runs as the Cinode user who owns an API account, and can read exactly
-what that user can read. Create an API account in Cinode, then set either the
-pair:
+what that user can read. Create an API account in Cinode, then save its
+credentials once with `cinode init`, which checks them against Cinode
+(`whoami`) and writes them to the credentials file:
+
+```sh
+cinode init                                   # on a terminal: prompts, the secret hidden
+printf '%s\n' "$SECRET" | cinode init --access-id 0123abcd.app.cinode.com   # agents and scripts
+cinode init --from-env                        # save what the environment holds today
+```
+
+- Prompts go to stderr. Without a terminal, the secret is the first line of
+  stdin; it is never a command-line option, since arguments show up in `ps`
+  and shell history.
+- `--from-env` takes `CINODE_ACCESS_ID` and `CINODE_ACCESS_SECRET`, or
+  `CINODE_BASIC` split at its first colon.
+- Credentials that Cinode rejects are not saved (exit 3). An existing file is
+  replaced only with `--force` (otherwise exit 1).
+- On success it prints `{"path", "access_id", "company_id", "user_id"}`,
+  never the secret.
+- The AccessId ends in `.app.cinode.com`. Copying only the hex part gives a 400
+  at `/token`.
+
+### Environment variables
+
+Instead of the file, set either the pair:
 
 ```sh
 export CINODE_ACCESS_ID=...        # the full AccessId, including .app.cinode.com
@@ -41,11 +65,10 @@ or a single Basic credential:
 export CINODE_BASIC=$(printf '%s:%s' "$CINODE_ACCESS_ID" "$CINODE_ACCESS_SECRET" | base64)
 ```
 
-- The AccessId ends in `.app.cinode.com`. Copying only the hex part gives a 400
-  at `/token`.
 - If both the pair and `CINODE_BASIC` are set, the pair wins. Setting only one
   of the pair is an error.
-- `CINODE_TIMEOUT` sets the request timeout in seconds (default 30).
+- `CINODE_TIMEOUT` sets the request timeout in seconds (default 30), whichever
+  source the credentials come from.
 - The company id and user id are never configured; they come from the token.
 
 ### The credentials file
@@ -56,14 +79,16 @@ from a credentials file, at `$CINODE_CREDENTIALS_FILE` if set, else
 absolute path), else `~/.config/cinode/credentials.toml`, on macOS too:
 
 ```toml
+# Written by `cinode init`. It holds a secret: keep it private (chmod 600).
 access_id = "0123abcd.app.cinode.com"
 access_secret = "..."
 ```
 
 - The environment wins as a whole: if it holds any credentials (the pair,
   half a pair, or `CINODE_BASIC`), the file is not opened.
-- The secret is stored in plain text, so keep the file private
-  (`chmod 600`). Loading a file others can read is not an error.
+- The secret is stored in plain text, so keep the file private. `cinode init`
+  creates it with mode `0600` (and its directory, if new, with `0700`), and
+  writes it atomically. Loading a file others can read is not an error.
 - A file that cannot be read, is not TOML, or lacks either key as a
   non-empty string is an auth error that names the file and the key.
 - `cinode config show` says where the credentials in use come from (`env` or
@@ -134,13 +159,14 @@ cinode teams skills <team-id>
 cinode teams profiles <team-id>
 cinode keywords search <term>
 cinode schema [<model>]
+cinode init [--access-id ID] [--from-env] [--force]
 cinode config show
 ```
 
 `<user>` is a numeric id or `me`. `--jsonl` writes a list as one object per
-line (every command but `schema` and `config show`), and `--raw` writes
+line (every command but `schema`, `init` and `config show`), and `--raw` writes
 Cinode's payload untouched (every command but `teams skills`, `teams
-profiles`, `schema` and `config show`).
+profiles`, `schema`, `init` and `config show`).
 `cinode schema` lists the output models, and `cinode schema skill` prints one
 model's JSON Schema.
 

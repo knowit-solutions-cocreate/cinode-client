@@ -42,6 +42,10 @@ def cli_api(monkeypatch: pytest.MonkeyPatch) -> Iterator[respx.MockRouter]:
 
 @pytest.fixture
 def cli() -> Callable[..., Result]:
-    """Run `cinode` with the given arguments."""
+    """Run `cinode` with the given arguments, and `input` on stdin."""
     runner = CliRunner()
-    return lambda *args: runner.invoke(app, list(args))
+
+    def run(*args: str, input: str | None = None) -> Result:
+        return runner.invoke(app, list(args), input=input)
+
+    return run

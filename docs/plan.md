@@ -297,7 +297,7 @@ Tests:
 Tests (under `tests/cli/test_cli.py`, with `CINODE_CREDENTIALS_FILE` set to
 `tmp_path / "new" / "credentials.toml"`, whose directory does not exist
 beforehand, except where a test creates it):
-- [ ] **Review focus 4 and 6:** `cinode init --access-id id-1.app.cinode.com`
+- [x] **Review focus 4 and 6:** `cinode init --access-id id-1.app.cinode.com`
   with stdin `'s3cret-"\\:value\n'`:
   - it exits 0, and stdout is exactly `{"path": <path>, "access_id":
     "id-1.app.cinode.com", "company_id": 99, "user_id": 1001}`
@@ -306,22 +306,22 @@ beforehand, except where a test creates it):
   - `/token` saw the matching Basic credential
   - the secret is in neither stream
   - the directory holds only `credentials.toml`
-- [ ] **Review focus 5:** with `/token` returning 401, `init` exits 3 with an
+- [x] **Review focus 5:** with `/token` returning 401, `init` exits 3 with an
   `AuthError` envelope, and `tmp_path / "new"` does not exist (or, if the
   implementation creates it before verifying, is empty).
-- [ ] Parametrized over `--force`, with a file already at the path: without
+- [x] Parametrized over `--force`, with a file already at the path: without
   it, exit 1, the file unchanged and no request made; with it, exit 0 and the
   file replaced.
-- [ ] **Review focus 6:** `init --from-env`, with only `CINODE_BASIC` set, to
+- [x] **Review focus 6:** `init --from-env`, with only `CINODE_BASIC` set, to
   base64 of `id-2.app.cinode.com:pa:ss`, saves the AccessId
   `id-2.app.cinode.com` and the secret `pa:ss`.
-- [ ] Parametrized usage errors, each exiting 2 with a `UsageError` envelope,
+- [x] Parametrized usage errors, each exiting 2 with a `UsageError` envelope,
   no request and no file:
   - `--from-env --access-id x`
   - no `--access-id` (the runner's stdin is not a terminal)
   - empty stdin
-- [ ] **Review focus 7:** the GET-only transport test passes unedited.
-- [ ] Live: the `init` round trip. Skip it, with a message that names no
+- [x] **Review focus 7:** the GET-only transport test passes unedited.
+- [x] Live: the `init` round trip. Skip it, with a message that names no
   data, when the environment holds neither the pair nor `CINODE_BASIC`.
   Otherwise, with `path = tmp_path / "credentials.toml"`:
   - `cinode init --from-env`, run with `os.environ` plus `CINODE_CREDENTIALS_FILE=path`,
@@ -331,11 +331,11 @@ beforehand, except where a test creates it):
     gives `.user_id` equal to the owner's
   - the file is deleted in a `finally` (or fixture teardown), whatever the
     outcome, since pytest keeps old `tmp_path` directories
-- [ ] README: *Credentials* opens with `cinode init` (the terminal path, the
+- [x] README: *Credentials* opens with `cinode init` (the terminal path, the
   stdin path for agents and scripts, and `--from-env` for migrating), and the
   environment variables become the alternative. The CLI list gains `cinode
   init`. CHANGELOG: the *Unreleased* entry covers it.
-- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
+- [x] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
   (the slow tests included, since this is the last task). Commit in two
   chunks: "Add cinode init", "Test the init round trip live".
 
@@ -343,7 +343,7 @@ beforehand, except where a test creates it):
 
 ## Done when
 
-- [ ] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are
+- [x] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are
       clean, and the default test run takes under two seconds.
-- [ ] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
+- [x] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
       profile.

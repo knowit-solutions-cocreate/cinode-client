@@ -52,6 +52,7 @@ app.add_typer(teams.app, name="teams")
 app.add_typer(keywords.app, name="keywords")
 app.add_typer(config.app, name="config")
 app.command("schema")(schema.schema)
+app.command("init")(config.init)
 
 
 @app.command()

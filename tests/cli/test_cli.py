@@ -1,5 +1,6 @@
 import base64
 import json
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
@@ -166,3 +167,101 @@ def test_credentials_come_from_the_file_and_config_show_reports_it(
         "file_private": private,
     }
     assert "s3cret-value" not in result.stdout + result.stderr
+
+
+WHOAMI = "/_whoami"
+
+
+@pytest.fixture
+def new_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """A credentials file path, in a directory that does not exist yet."""
+    path = tmp_path / "new" / "credentials.toml"
+    monkeypatch.setenv("CINODE_CREDENTIALS_FILE", str(path))
+    return path
+
+
+@pytest.fixture
+def whoami_api(cli_api: respx.MockRouter) -> respx.MockRouter:
+    cli_api.get(WHOAMI, name="whoami").mock(
+        return_value=httpx.Response(200, json={"companyId": 99, "companyUserId": 1001})
+    )
+    return cli_api
+
+
+def test_init_saves_verified_credentials_privately(
+    cli: Cli, whoami_api: respx.MockRouter, new_path: Path
+) -> None:
+    secret = 's3cret-"\\:value'
+    result = cli("init", "--access-id", "id-1.app.cinode.com", input=secret + "\n")
+    assert result.exit_code == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "path": str(new_path),
+        "access_id": "id-1.app.cinode.com",
+        "company_id": 99,
+        "user_id": 1001,
+    }
+    assert new_path.stat().st_mode & 0o777 == 0o600
+    assert new_path.parent.stat().st_mode & 0o777 == 0o700
+    assert tomllib.loads(new_path.read_text())["access_secret"] == secret
+    basic = base64.b64encode(f"id-1.app.cinode.com:{secret}".encode()).decode()
+    assert whoami_api["token"].calls.last.request.headers["Authorization"] == f"Basic {basic}"
+    assert "s3cret" not in result.stdout + result.stderr
+    assert [p.name for p in new_path.parent.iterdir()] == ["credentials.toml"]
+
+
+def test_init_writes_nothing_for_rejected_credentials(
+    cli: Cli, whoami_api: respx.MockRouter, new_path: Path
+) -> None:
+    whoami_api["token"].mock(return_value=httpx.Response(401))
+    result = cli("init", "--access-id", "id-1.app.cinode.com", input="s3cret-value\n")
+    assert result.exit_code == 3
+    assert json.loads(result.stderr)["error"]["type"] == "AuthError"
+    assert not new_path.parent.exists() or not any(new_path.parent.iterdir())
+
+
+@pytest.mark.parametrize("force", [False, True])
+def test_init_replaces_a_file_only_with_force(
+    cli: Cli, whoami_api: respx.MockRouter, new_path: Path, force: bool
+) -> None:
+    new_path.parent.mkdir()
+    new_path.write_text('access_id = "old"\naccess_secret = "old"\n')
+    args = ["init", "--access-id", "id-1.app.cinode.com", *(["--force"] if force else [])]
+    result = cli(*args, input="s3cret-value\n")
+    saved = tomllib.loads(new_path.read_text())
+    if force:
+        assert result.exit_code == 0, result.stderr
+        assert saved == {"access_id": "id-1.app.cinode.com", "access_secret": "s3cret-value"}
+    else:
+        assert result.exit_code == 1
+        assert "--force" in json.loads(result.stderr)["error"]["message"]
+        assert saved == {"access_id": "old", "access_secret": "old"}
+        assert not whoami_api.calls
+
+
+def test_init_from_env_splits_basic_at_the_first_colon(
+    cli: Cli, whoami_api: respx.MockRouter, new_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CINODE_BASIC", base64.b64encode(b"id-2.app.cinode.com:pa:ss").decode())
+    result = cli("init", "--from-env")
+    assert result.exit_code == 0, result.stderr
+    saved = tomllib.loads(new_path.read_text())
+    assert saved == {"access_id": "id-2.app.cinode.com", "access_secret": "pa:ss"}
+
+
+@pytest.mark.parametrize(
+    ("args", "stdin"),
+    [
+        (["--from-env", "--access-id", "x"], None),
+        ([], "s3cret-value\n"),
+        (["--access-id", "id-1.app.cinode.com"], ""),
+    ],
+    ids=["from-env-and-access-id", "no-access-id", "empty-stdin"],
+)
+def test_init_usage_errors(
+    cli: Cli, whoami_api: respx.MockRouter, new_path: Path, args: list[str], stdin: str | None
+) -> None:
+    result = cli("init", *args, input=stdin)
+    assert result.exit_code == 2
+    assert json.loads(result.stderr)["error"]["type"] == "UsageError"
+    assert not whoami_api.calls
+    assert not new_path.parent.exists()

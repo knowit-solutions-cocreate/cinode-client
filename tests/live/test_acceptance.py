@@ -9,6 +9,7 @@ rewriting would otherwise print the call's arguments).
 
 import json
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -33,6 +34,33 @@ def ok(cinode: Cinode, *args: str | int) -> str:
     code = result.returncode
     assert code == 0, result.stderr  # stderr holds only the error envelope
     return result.stdout
+
+
+_CREDENTIAL_VARS = ("CINODE_ACCESS_ID", "CINODE_ACCESS_SECRET", "CINODE_BASIC")
+
+
+def test_init_round_trip(cinode: Cinode, jq: Jq, owner: Owner, tmp_path: Path) -> None:
+    pair = os.environ.get("CINODE_ACCESS_ID") and os.environ.get("CINODE_ACCESS_SECRET")
+    if not (pair or os.environ.get("CINODE_BASIC")):
+        pytest.skip("the environment holds no credentials for `cinode init --from-env`")
+    path = tmp_path / "credentials.toml"
+    try:
+        result = cinode(
+            "init", "--from-env", env=os.environ | {"CINODE_CREDENTIALS_FILE": str(path)}
+        )
+        code = result.returncode
+        assert code == 0, result.stderr
+        mode = path.stat().st_mode & 0o777
+        assert mode == 0o600, f"the file's mode is {mode:04o}"
+
+        env = {k: v for k, v in os.environ.items() if k not in _CREDENTIAL_VARS}
+        result = cinode("whoami", env=env | {"CINODE_CREDENTIALS_FILE": str(path)})
+        code = result.returncode
+        assert code == 0, result.stderr
+        found = jq(".user_id == $id", result.stdout, id=owner.user_id)
+        assert found, "whoami from the credentials file is not the owner"
+    finally:
+        path.unlink(missing_ok=True)
 
 
 def test_whoami(cinode: Cinode, jq: Jq, owner: Owner) -> None:

@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import sys
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -71,11 +71,16 @@ def _binary() -> str:
 
 @pytest.fixture(scope="session")
 def cinode() -> Cinode:
-    """Run the installed `cinode` with `args`, capturing text output, paced for `/token`."""
+    """Run the installed `cinode` with `args`, capturing text output, paced for `/token`.
+
+    `env`, when given, is the process's whole environment.
+    """
     binary = _binary()
     last = 0.0
 
-    def run(*args: str | int) -> subprocess.CompletedProcess[str]:
+    def run(
+        *args: str | int, env: Mapping[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
         nonlocal last
         wait = last + MIN_INTERVAL - time.monotonic()
         if wait > 0:
@@ -85,6 +90,7 @@ def cinode() -> Cinode:
                 [binary, *map(str, args)],
                 capture_output=True,
                 text=True,
+                env=env,
                 timeout=300,
                 check=False,
             )
