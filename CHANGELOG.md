@@ -5,6 +5,10 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+## 0.2.0 — 2026-09-24
+
+User profiles and resumes, as lean, typed projections of Cinode's payloads.
+
 - Licensed under the MIT licence.
 - **Profiles and resumes:** `users.profile.get`, `users.resumes.list` and
   `users.resumes.get`, with the lean `Profile`, `ResumeSummary` and `Resume`
