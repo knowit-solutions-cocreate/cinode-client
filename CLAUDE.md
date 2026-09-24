@@ -61,13 +61,73 @@ Live tests run only with credentials in the environment, never in CI:
 
 ## Workflow: orchestrated pull requests
 
-Work on `docs/plan.md` is done by agents, one PR per task. The main session is
-the **orchestrator**. Each agent it starts is told which role it has, and
-follows that role's section below.
+Each version is built in two phases, each in its own session:
+
+1. **Design.** The **designer** works with the human to decide what the
+   version is, and writes the design changes and the plan. This is the only
+   phase in which the human is at the keyboard.
+2. **Build.** The **orchestrator** carries out the plan unattended: one PR per
+   task, written, reviewed and fixed by agents. It stops only at the points
+   listed in *Human in the loop*.
+
+Each agent a session starts is told which role it has, and follows that role's
+section below.
 
 All agents act as the same GitHub user, so GitHub's "approve" and "request
 changes" are not available. Every PR comment an agent posts starts with its
 role in bold, for example `**Reviewer (spec)**`.
+
+### Starting a version
+
+When `docs/plan.md` has no open tasks, no version is in progress. The human
+starts a **designer** session:
+
+> You are the designer for cinode-client. Read `CLAUDE.md`, then follow
+> *Starting a version*. We are planning the next roadmap entry.
+
+The designer then:
+
+1. **Reads everything into context:** `CLAUDE.md`, `docs/design.md`,
+   `docs/roadmap.md`, the archived plans in `docs/plans/`, `CHANGELOG.md`,
+   the code, and open issues and PR threads where relevant. It arrives knowing
+   the system, rather than rediscovering it through questions.
+2. **Frames the version with the human.** It proposes a scope from the roadmap
+   and a list of open questions, then settles them with the human one decision
+   at a time. It recommends an answer for each question, but the human decides.
+3. **Runs feedback loops** where they help, and brings real decisions back to
+   the human:
+   - An **explorer** probes the live API for areas the version touches.
+   - A **critic** reads the draft design and plan as a hostile reviewer.
+     The critic always runs at least once, on the complete draft.
+4. **Writes the handoff:** the changes to `docs/design.md`, a new
+   `docs/plan.md` in the format of the archived plans (goal, constraints,
+   review focus, file map, tasks with interfaces), and the roadmap entry. These
+   go in as one PR.
+5. **Waits for the human to approve and merge that PR.** That approval is the
+   handoff.
+6. **Retires,** with exactly: *"My work here is done, I retire."* It starts no
+   orchestrator and does nothing further in that session.
+
+The human then starts a fresh **orchestrator** session:
+
+> You are the orchestrator for cinode-client. Read `CLAUDE.md` and run the
+> plan in `docs/plan.md`.
+
+#### Sizing tasks
+
+Aim for bite-sized tasks, but not tiny ones. Every task carries a fixed
+overhead: an implementer, two reviewers, a triage and often a fixer and a
+second round. In v0.1 that came to roughly 200–300k agent tokens and 10–15
+minutes a task, however small the change. A good task:
+
+- delivers one coherent piece (a module and its listed tests, or a group of
+  CLI commands) that a reviewer can judge on its own
+- folds scaffolding, configuration and docs into the task that needs them,
+  instead of making them tasks of their own
+- is split only where a reviewer could reasonably reject one half and accept
+  the other
+- stays within one PR a reviewer can hold in mind; in v0.1 the transport,
+  about 200 lines and its tests, was the upper end, and took three rounds
 
 ### The loop, per task
 
@@ -85,16 +145,35 @@ role in bold, for example `**Reviewer (spec)**`.
 6. Once a round has no accepted blocking or should-fix findings and CI is
    green, the orchestrator squash-merges:
    `gh pr merge <n> --squash --delete-branch`.
-7. The orchestrator pulls `main`, then goes on to the next task.
+7. The orchestrator pulls `main`, then goes on to the next task. After the
+   last task it stops for the release (see *Human in the loop*).
 
-**Limits:** at most three review rounds per PR. If a PR is not clean after the
-third, the orchestrator stops and asks the human.
+**Limits:** at most three review rounds per PR.
 
-**The orchestrator stops and asks the human when:**
-- a task cannot be done as the plan describes it
-- the design itself needs to change
-- live tests need credentials that are not in the environment
-- reviewers disagree on something that cannot be settled from the design
+### Human in the loop
+
+These are the only points at which work waits for the human. Everywhere else,
+agents decide and carry on.
+
+**Design phase** (the human is present throughout):
+1. Every scope and design decision.
+2. Approving and merging the handoff PR (design changes and plan).
+
+**Build phase** (the orchestrator stops, says why in one line, and waits):
+3. **Release.** When the last task is merged, the orchestrator reports that
+   the plan is done. Tagging, building and publishing a release waits for the
+   human.
+4. **The design needs to change**, beyond fixing wording.
+5. **A task cannot be done as the plan describes it.**
+6. **A PR is still not clean after three review rounds.**
+7. **Reviewers disagree** on something the design cannot settle.
+8. **Credentials or access are missing**, or were rejected.
+9. **Anything outward-facing beyond PRs and merges to `main`:** repository
+   settings, publishing, deleting branches or tags other than a merged PR's
+   own branch, or anything that cannot be undone.
+
+The orchestrator never works around a stop, for example by weakening a test
+or narrowing a task to get past it.
 
 ### Working agreements
 
@@ -151,8 +230,9 @@ The orchestrator keeps no state of its own; the repository holds it. To pick
 up after a break or a lost context:
 
 1. Pull `main`. The first task in `docs/plan.md` with unticked boxes is next.
-   If `docs/plan.md` has no tasks, no version is in progress: ask the human
-   which roadmap entry to plan next.
+   If `docs/plan.md` has no open tasks, no version is in progress, and the
+   next step is a designer session, which the human starts (see *Starting a
+   version*).
 2. Run `gh pr list`. If that task already has an open PR, read its comments to
    see which round it is in and what was last triaged. Carry on from there.
 
@@ -163,10 +243,52 @@ workflow. Read `CLAUDE.md` (Rules and your role's section),
 `docs/design.md`, and your task in `docs/plan.md`."* The prompt then gives the
 task number, PR number or findings as needed.
 
+#### Designer
+
+The main session of the design phase. It decides the version with the human,
+writes the design changes and the plan, and hands off. **It writes no product
+code and starts no implementer.**
+
+- Follows *Starting a version*.
+- Starts explorers and critics with worktree isolation, and gives each the
+  draft or the question in its prompt.
+- Keeps decisions with the human. It recommends, but does not choose scope on
+  the human's behalf.
+- Ends the session with exactly: *"My work here is done, I retire."*
+
+#### Explorer
+
+Answers the designer's questions about the live API.
+
+- Read-only: GET requests only, through the `cinode` CLI or the library where
+  they cover it, otherwise `curl` with the environment's credentials.
+- Reports response shapes, nullability, permissions (which calls return 403
+  for this account) and pagination, with field names and types only.
+- **Never quotes personnel data.** Values are replaced by their type, for
+  example `"firstName": <string>`, and it reports counts, not lists.
+- Replies in at most ten lines, since its findings shape the design.
+
+#### Critic
+
+Reads the draft design and plan as a hostile reviewer, before the handoff.
+
+- Looks for:
+  - gaps (requirements with no task, tasks with no test for their risk)
+  - contradictions between the design and the plan
+  - scope creep
+  - tasks that are too small to carry their overhead, or too big to review
+    as one PR
+  - interfaces a later task depends on that no earlier task produces
+  - anything in the plan that would make an unattended orchestrator stop
+    unnecessarily
+- Writes its findings to the designer, numbered with severity, not to a PR.
+- Replies in at most ten lines.
+
 #### Orchestrator
 
-This is the main session. It plans, delegates, triages and merges. **It does
-not write product code.**
+The main session of the build phase. It delegates, triages and merges.
+**It does not write product code, and it does not redesign.** A needed
+design change is a stop (see *Human in the loop*).
 
 - Starts every agent (implementers, fixers and reviewers) in its own worktree,
   using the Agent tool's worktree isolation.
