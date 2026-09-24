@@ -195,8 +195,7 @@ export.
 ```python
 from cinode import Cinode
 
-c = Cinode.from_config()                  # environment, else the credentials file
-c = Cinode.from_env()                     # environment only
+c = Cinode()                              # environment, else the credentials file
 c = Cinode(access_id="...", access_secret="...")
 
 c.company_id                              # from the JWT
@@ -237,7 +236,7 @@ collapse it as a dot segment and reach a different endpoint. Anything else
 raises `ValueError`.
 
 `Cinode` is a context manager and owns its `httpx.Client`:
-`with Cinode.from_env() as c: ...`.
+`with Cinode() as c: ...`.
 
 ### Resources
 
@@ -520,7 +519,7 @@ failure can be reported to Cinode support.
 | Setting | Argument | Environment | Credentials file |
 |---|---|---|---|
 | credentials | `access_id`, `access_secret` | `CINODE_ACCESS_ID` + `CINODE_ACCESS_SECRET`, or `CINODE_BASIC` | `access_id`, `access_secret` |
-| credentials file location | `path` (`from_config`) | `CINODE_CREDENTIALS_FILE` | |
+| credentials file location | `credentials_file` | `CINODE_CREDENTIALS_FILE` | |
 | base URL | `base_url` | `CINODE_BASE_URL` (tests only) | |
 | timeout | `timeout` | `CINODE_TIMEOUT` | |
 
@@ -529,22 +528,44 @@ Secrets are never logged and never shown in `repr`.
 
 ### Where credentials come from
 
-There are three constructors, and each reads only what its name says:
+There is one way to build a client, and it resolves every setting in the
+same order: **arguments, then the environment, then the credentials file,
+then the default.**
 
-- `Cinode(access_id, access_secret)` uses its arguments.
-- `Cinode.from_env(env=None)` reads the environment only, as in v0.1.
-- `Cinode.from_config(*, env=None, path=None)` reads the environment, and
-  the credentials file only when the environment holds no credentials. The CLI
-  uses this one, and so should the MCP server.
+```python
+Cinode(
+    access_id: str | None = None,
+    access_secret: str | None = None,
+    *,
+    base_url: str | None = None,
+    timeout: float | None = None,
+    env: Mapping[str, str] | None = None,     # default: os.environ
+    credentials_file: Path | None = None,     # default: see Location below
+)
+```
 
-In `from_config`, **the environment wins as a whole.** If it holds
+The CLI calls `Cinode()`, and so should the MCP server. This is the convention
+of `Anthropic()`, `OpenAI()` and `boto3.client()`, which read their
+environment when no key is passed. v0.1's `Cinode.from_env()` is removed:
+`Cinode()` does the same whenever the environment holds credentials.
+
+- **Credentials:** `access_id` and `access_secret` together are used as
+  given, and neither the environment nor the file is read for credentials.
+  Passing only one of them raises `ValueError`, like any other bad argument.
+  Given neither, the environment is read, then the file.
+- **Base URL and timeout:** the argument, else `CINODE_BASE_URL` or
+  `CINODE_TIMEOUT`, else the default, whichever source the credentials came
+  from. The file holds neither.
+- `env` stands in for `os.environ` (tests pass a mapping), and
+  `credentials_file` for the file's default location.
+
+Between the environment and the file, **the environment wins as a whole.** If it holds
 credentials (the pair, or `CINODE_BASIC`), the file is not opened, so a broken
 file cannot break a caller who sets the environment. Half a pair is still an
 error and never falls back to the file, which may belong to another account.
-With no credentials in either, `from_config` raises `AuthError`: "No Cinode
+With no credentials in either, `Cinode()` raises `AuthError`: "No Cinode
 credentials: none in the environment, and no file at `<path>`. Run
-`cinode init`, or set …". `CINODE_BASE_URL` and `CINODE_TIMEOUT` apply
-whichever source the credentials came from.
+`cinode init`, or set …".
 
 ### The credentials file
 

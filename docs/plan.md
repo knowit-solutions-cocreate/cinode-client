@@ -11,8 +11,9 @@ read whenever the environment has no credentials. `cinode config show` says
 where the credentials in use come from.
 
 **Architecture:** no new layers. `_config.py` learns to find and read the
-credentials file, and `Cinode` gains `from_config()`, which the CLI's `run()`
-switches to. The one new CLI module, `cli/config.py`, holds `cinode config
+credentials file, and `Cinode(...)` becomes the one way to build a client,
+resolving arguments, then the environment, then the file. `Cinode.from_env()`
+is removed. The one new CLI module, `cli/config.py`, holds `cinode config
 show` and `cinode init`, and with it the only code that writes a file. The
 library only reads.
 
@@ -29,12 +30,18 @@ not repeat them.
 - Everything in v0.2's global constraints still holds: GET only, synthetic
   fixtures (company 99, user 1001), the four checks on every commit, the
   default run under two seconds, and only the tests listed.
-- **Nothing v0.2 shipped changes.** `Cinode(...)`, `Cinode.from_env()` and
-  `Settings.from_env()` behave exactly as before, and their existing tests
-  pass unedited. The CLI resolves credentials through `from_config()`, which
-  behaves the same as before whenever the environment holds credentials. The
-  only visible difference is the text of the "no credentials" message, which
-  now names the credentials file; its type and exit code stay the same.
+- **One deliberate break, and nothing else.** `Cinode.from_env()` is removed,
+  which is recorded under a *Breaking* heading in the CHANGELOG. Everything
+  else v0.2 shipped keeps working:
+  - `Cinode(access_id, access_secret)` behaves as before, except that
+    `CINODE_BASE_URL` and `CINODE_TIMEOUT` now apply when `base_url` and
+    `timeout` are not passed.
+  - The private `Settings.from_env()` is unchanged, and its existing tests
+    pass unedited.
+  - The CLI behaves as before whenever the environment holds credentials.
+    The only visible difference is the text of the "no credentials" message,
+    which now names the credentials file; its type and exit code stay the
+    same.
 - **Tests never touch the real home directory.** Every file a test writes goes
   under `tmp_path`. `CINODE_CREDENTIALS_FILE` or `HOME` is set with `monkeypatch`, never
   left to default.
@@ -77,12 +84,12 @@ in the task named.
 
 ```
 src/cinode/
-  _config.py        credentials_path, read_credentials, decode_basic, env_options, Settings.from_config
-  _client.py        Cinode.from_config
+  _config.py        credentials_path, read_credentials, decode_basic, env_options, Settings.resolve
+  _client.py        Cinode.__init__ resolves; from_env removed
   cli/  config.py (new)  __init__.py  _output.py  schema.py
 tests/
   conftest.py       autouse _no_credentials_file
-  cli/conftest.py   patch Cinode.from_config instead of from_env
+  cli/conftest.py   patch _output.client instead of Cinode.from_env
   live/conftest.py  no-op _no_credentials_file override; cinode(..., env=...)
   test_config.py  cli/test_cli.py  live/test_acceptance.py
 README.md  CHANGELOG.md
@@ -122,7 +129,7 @@ README.md  CHANGELOG.md
     too.
   - `env_options(env: Mapping[str, str]) -> tuple[str, float]`: the base URL
     and timeout from `CINODE_BASE_URL` and `CINODE_TIMEOUT`, as `from_env`
-    reads them today. `from_env` calls it, and so does Task 2's `init`.
+    reads them today. `from_env` and `resolve` call it.
   - `Settings` gains two fields that are not secret:
     - `source: Literal["argument", "env", "file"] = "argument"`
     - `access_id: str | None = None`
@@ -131,34 +138,40 @@ README.md  CHANGELOG.md
     and sets `access_id`. `from_env` sets `source="env"`, and takes
     `access_id` from the pair, or from `decode_basic` when only `CINODE_BASIC`
     is set (`None` if that fails).
-  - `Settings.from_config(env: Mapping[str, str] | None = None, path: Path | None = None) -> Self`,
+  - `Settings.resolve(access_id: str | None = None, access_secret: str | None = None, *, base_url: str | None = None, timeout: float | None = None, env: Mapping[str, str] | None = None, credentials_file: Path | None = None) -> Self`,
     as in the design's *Where credentials come from*:
+    - `env` defaults to `os.environ`. `base_url` and `timeout` fall back to
+      `env_options(env)`.
+    - With both `access_id` and `access_secret`, it builds the settings from
+      them (`source="argument"`), and neither the environment nor the file
+      is read for credentials. With only one, it raises `ValueError`.
     - If the environment holds credentials, or half a pair, it defers to
       `from_env`, and the file is not opened. "Holds credentials" is exactly
       `from_env`'s own test: a non-empty `CINODE_ACCESS_ID` or
       `CINODE_ACCESS_SECRET`, or a `CINODE_BASIC` that is non-empty once its
       whitespace is dropped. An empty or blank `CINODE_BASIC` counts as
       unset, so the file is tried.
-    - Otherwise it reads `read_credentials(path or credentials_path(env))` and builds
-      the settings with `source="file"`, using `env_options(env)` for the base
-      URL and timeout.
+    - Otherwise it reads `read_credentials(credentials_file or credentials_path(env))`
+      and builds the settings with `source="file"`.
     - With neither, it raises `AuthError` with a message that begins
       `"No Cinode credentials"` and names the path.
-- `Cinode.from_config(*, env: Mapping[str, str] | None = None, path: Path | None = None) -> Self`,
-  beside `from_env`.
-- `cli/_output.py`: `run()` builds its client with `Cinode.from_config()`.
+- `Cinode.__init__` takes `Settings.resolve`'s parameters, with the same
+  names and defaults, and builds its transport from `Settings.resolve(...)`.
+  `Cinode.from_env` is deleted; `_with_transport` stays.
+- `cli/_output.py`: a module-level `client() -> Cinode` returns `Cinode()`,
+  and `run()` calls it, which gives tests one seam to patch.
 - `cli/config.py`:
   - a `config` typer group with an `@app.callback()` (it has one command
     for now, like `users profile`)
   - `cinode config show`
   - `ConfigReport(CinodeModel)`, with the fields of the design's table
-- `show` resolves credentials with `Settings.from_config()`. A `CinodeError`
+- `show` resolves credentials with `Settings.resolve()`. A `CinodeError`
   goes to `fail()` (exit 3 for an `AuthError`). On success, `show` stats
   `credentials_path()` for `file_exists`, `file_mode` (`f"{stat.S_IMODE(mode):04o}"`)
   and `file_private` (`(mode & 0o077) == 0`), and writes the report with
   `write(..., raw=False, jsonl=False)`. It makes no request.
   `ConfigReport.source` is `Literal["env", "file"]`, while `Settings.source`
-  also allows `"argument"`, which `from_config` never returns; narrow it
+  also allows `"argument"`, which `resolve()` without arguments never returns; narrow it
   explicitly, as strict pyright requires.
 - Registered in `cli/__init__.py` as `app.add_typer(config.app, name="config")`.
   `cinode schema` gains `config`.
@@ -167,14 +180,18 @@ README.md  CHANGELOG.md
   `tests/live/conftest.py` overrides it with a no-op fixture of the same name,
   so the live suite may use the developer's credentials file.
 - `tests/cli/conftest.py`: the `cli_api` fixture patches
-  `cinode.cli._output.Cinode.from_config` (instead of `from_env`) with a
-  client built on `Settings.from_config()` and the no-sleep transport. Nothing
-  else in that file changes.
+  `cinode.cli._output.client` (instead of `Cinode.from_env`) with a client
+  built on `Settings.resolve()` and the no-sleep transport. Nothing else in
+  that file changes.
 
 Tests:
-- [ ] **Review focus 1:** one parametrized test of `Settings.from_config` in
+- [ ] **Review focus 1:** one parametrized test of `Settings.resolve` in
   `tests/test_config.py`, using an `env` mapping and a file under
   `tmp_path`. The cases:
+  - both arguments, the pair in the environment, and a valid file:
+    `source == "argument"`, with the arguments' credentials
+  - `access_id` only: `ValueError`
+  - `timeout=7` as an argument and `CINODE_TIMEOUT=5`: `timeout == 7`
   - the pair in the environment, and a valid file: `source == "env"`, with
     the environment's credentials
   - `CINODE_BASIC` in the environment, and a valid file: `source == "env"`
@@ -215,11 +232,13 @@ Tests:
 - [ ] README:
   - *Credentials* gains the credentials file: its location, its two keys, that
     the environment wins, and `cinode config show`
-  - the library quick start uses `Cinode.from_config()`
+  - the library quick start uses `Cinode()`, and no longer mentions
+    `from_env`
   - the CLI list gains `cinode config show`
   - the "Version 0.1 covers …" paragraph gains a sentence about version 0.3
 
-  CHANGELOG: an entry under *Unreleased*.
+  CHANGELOG: an entry under *Unreleased*, with a *Breaking* line for the
+  removal of `Cinode.from_env()` (use `Cinode()`).
 - [ ] Run the four checks. Commit in two chunks: "Read credentials from a
   credentials file", "Add cinode config show".
 
@@ -230,7 +249,7 @@ Tests:
 `tests/live/conftest.py`, `tests/live/test_acceptance.py`, `README.md`,
 `CHANGELOG.md`.
 
-**Consumes:** `credentials_path`, `decode_basic` and `env_options` from Task 1.
+**Consumes:** `credentials_path`, `decode_basic` and the resolving `Cinode(...)` from Task 1.
 
 **Produces:**
 - `cinode init [--access-id TEXT] [--from-env] [--force]`, registered at the
@@ -253,9 +272,9 @@ Tests:
      - a value containing a control character (U+0000–U+001F or U+007F),
        or one that does not encode as UTF-8 (a lone surrogate from
        undecodable stdin)
-  3. Verify: `with Cinode(access_id, secret, base_url=..., timeout=...) as c:
-     who = c.whoami()`, with `env_options(os.environ)`. A `CinodeError` goes
-     to `fail()`.
+  3. Verify: `with Cinode(access_id, secret) as c: who = c.whoami()`. The
+     constructor applies `CINODE_BASE_URL` and `CINODE_TIMEOUT` itself. A
+     `CinodeError` goes to `fail()`.
   4. Write with a private helper `_write_credentials(path, access_id, access_secret)`:
      - create the parent directory with `mkdir(mode=0o700, parents=True, exist_ok=True)`
      - build the text: the design's comment line, then each value quoted with
