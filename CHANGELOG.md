@@ -6,6 +6,11 @@ semantic versioning; while the version is 0.x, minor versions may break.
 ## Unreleased
 
 - Licensed under the MIT licence.
+- **Profiles and resumes:** `users.profile.get`, `users.resumes.list` and
+  `users.resumes.get`, with the lean `Profile`, `ResumeSummary` and `Resume`
+  models, and the commands `cinode users profile get`, `cinode users resumes
+  list` and `cinode users resumes get`. `cinode schema` gains `profile`,
+  `resume` and `resume-summary`. An empty resume list can mean no access.
 
 ## 0.1.0 — 2026-09-23
 

@@ -25,6 +25,7 @@ RawOption = Annotated[bool, typer.Option("--raw", help="Write Cinode's payload u
 JsonlOption = Annotated[bool, typer.Option("--jsonl", help="Write one JSON object per line.")]
 UserArg = Annotated[str, typer.Argument(help="A numeric user id, or `me`.")]
 KeywordIdArg = Annotated[int, typer.Argument(min=1, help="A keyword id.")]
+ResumeIdArg = Annotated[int, typer.Argument(min=1, help="A resume id.")]
 
 
 def exit_code(error: CinodeError) -> int:

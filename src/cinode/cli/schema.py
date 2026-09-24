@@ -6,11 +6,26 @@ from typing import Annotated
 
 import typer
 
-from cinode.models import CinodeModel, Keyword, Skill, Team, TeamMember, User, UserSummary, WhoAmI
+from cinode.models import (
+    CinodeModel,
+    Keyword,
+    Profile,
+    Resume,
+    ResumeSummary,
+    Skill,
+    Team,
+    TeamMember,
+    User,
+    UserSummary,
+    WhoAmI,
+)
 from cinode.ops import TeamSkills
 
 MODELS: dict[str, type[CinodeModel]] = {
     "keyword": Keyword,
+    "profile": Profile,
+    "resume": Resume,
+    "resume-summary": ResumeSummary,
     "skill": Skill,
     "team": Team,
     "team-member": TeamMember,
