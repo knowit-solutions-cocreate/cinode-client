@@ -29,8 +29,8 @@ Repository: https://github.com/knowit-solutions-cocreate/cinode-client. It is
 - **Plans are per version, and archived at release.** `docs/plan.md` holds
   the plan for the version in progress, and `docs/roadmap.md` lists the
   versions, one line each. When a version is released, its plan moves
-  unchanged to `docs/plans/v<major>.<minor>.md` (a rename, in its own commit,
-  so `git log --follow` keeps its history), and `docs/plan.md` becomes a stub
+  unchanged to `docs/plans/v<major>.<minor>.md` with `git mv`, so that
+  `git log --follow` keeps its history, and `docs/plan.md` becomes a stub
   or the next version's plan. An archived plan is frozen: only its links may
   be fixed. Before archiving, anything in the plan that is still true about
   the system moves to a living document (the design, the README or this file).
