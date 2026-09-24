@@ -140,7 +140,8 @@ def init(
     except CinodeError as error:
         fail(error)
     except OSError as error:
-        fail(CinodeError(f"Cannot write the credentials file at {path}: {error.strerror}."))
+        reason = error.strerror or type(error).__name__
+        fail(CinodeError(f"Cannot write the credentials file at {path}: {reason}."))
     result = InitResult(
         path=str(path), access_id=access_id, company_id=who.company_id, user_id=who.user_id
     )
