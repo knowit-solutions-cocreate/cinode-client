@@ -151,7 +151,9 @@ minutes a task, however small the change. A good task:
    is the commit's title. The orchestrator writes the body itself, for
    readers of `git log`: at most a few lines saying what changed and why,
    then any departure from the plan and any triage decision a reader might
-   trip over. No checks output, no footer and no personnel data.
+   trip over. No checks output, no footer and no personnel data. The body
+   ends with the session's `Co-authored-by` trailer, since `--body`
+   replaces GitHub's default body, which carries it.
 7. The orchestrator pulls `main`, then goes on to the next task. After the
    last task it stops for the release (see *Human in the loop*).
 
