@@ -8,6 +8,23 @@ from pydantic import AliasPath, Field, computed_field, field_validator, model_va
 from cinode.models._base import CinodeModel
 
 
+def resolve_keyword_id(data: Any) -> Any:
+    """Fill a null or missing top-level `id` from `keyword.id`, before validation.
+
+    The spec lets the top-level `id` be null, or it may be missing. Then the
+    nested `keyword.id` is used. `AliasChoices` alone would stop at the null.
+    """
+    if not isinstance(data, dict):
+        return data
+    payload = cast("dict[str, Any]", data)
+    if payload.get("id") is not None or "keyword_id" in payload:
+        return payload
+    keyword = payload.get("keyword")
+    if isinstance(keyword, dict) and "id" in keyword:
+        return payload | {"id": cast("dict[str, Any]", keyword)["id"]}
+    return payload
+
+
 class Keyword(CinodeModel):
     """A skill keyword from Cinode's shared vocabulary (`KeywordModel`)."""
 
@@ -51,17 +68,7 @@ class Skill(CinodeModel):
     @model_validator(mode="before")
     @classmethod
     def _keyword_id_from_keyword(cls, data: Any) -> Any:
-        # The spec lets the top-level `id` be null, or it may be missing. Then the
-        # nested `keyword.id` is used. `AliasChoices` alone would stop at the null.
-        if not isinstance(data, dict):
-            return data
-        payload = cast("dict[str, Any]", data)
-        if payload.get("id") is not None or "keyword_id" in payload:
-            return payload
-        keyword = payload.get("keyword")
-        if isinstance(keyword, dict) and "id" in keyword:
-            return payload | {"id": cast("dict[str, Any]", keyword)["id"]}
-        return payload
+        return resolve_keyword_id(data)
 
     @field_validator("name", mode="before")
     @classmethod

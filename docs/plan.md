@@ -113,7 +113,7 @@ README.md  CHANGELOG.md
 - `models/__init__` exports every public model above.
 
 Tests:
-- [ ] **Review focus 1, 2 and 3:** a synthetic `profile_payload()` maps to the
+- [x] **Review focus 1, 2 and 3:** a synthetic `profile_payload()` maps to the
   expected `model_dump(mode="json")`, checked as one exact dict. The payload
   has:
   - top-level `skills`, `references`, `extSkills` and `commitments` arrays,
@@ -128,7 +128,7 @@ Tests:
     `expireDate`, `issuer` in its translation entry)
   - `education: null`, which dumps as `[]`
   - `createdWhen` with seven fractional digits
-- [ ] Commit: "Add the profile models".
+- [x] Commit: "Add the profile models".
 
 ### Task 2: Resume models
 

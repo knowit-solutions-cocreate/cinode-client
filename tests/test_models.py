@@ -1,7 +1,7 @@
 import pytest
-from support import USER_ID, keyword_payload, member_payload, skill_payload
+from support import USER_ID, keyword_payload, member_payload, profile_payload, skill_payload
 
-from cinode.models import CinodeModel, Keyword, Skill, TeamMember
+from cinode.models import CinodeModel, Keyword, Profile, Skill, TeamMember
 
 
 def test_skill_maps_a_real_shaped_payload() -> None:
@@ -54,3 +54,93 @@ def test_team_member_user_id_is_resolved(payload: dict[str, object], has_user: b
     member = TeamMember.parse(payload)
     assert member.user_id == USER_ID
     assert (member.user is not None) is has_user
+
+
+def test_profile_dumps_a_lean_projection() -> None:
+    profile = Profile.parse(profile_payload())
+    assert profile.model_dump(mode="json") == {
+        "id": 5005,
+        "user_id": USER_ID,
+        "language": "sv-SE",
+        "created": "2026-01-02T03:04:05.123456",
+        "updated": "2026-03-04T05:06:07",
+        "presentation": {
+            "id": 6001,
+            "translations": [
+                {
+                    "profile_translation_id": 501,
+                    "language": "sv-SE",
+                    "title": "Utvecklare",
+                    "description": "Skriver kod.",
+                    "personal_description": "",
+                },
+                {
+                    "profile_translation_id": 502,
+                    "language": "en-GB",
+                    "title": "Developer",
+                    "description": "Writes code.",
+                    "personal_description": "Likes tea.",
+                },
+            ],
+        },
+        "work_experience": [
+            {
+                "id": 7001,
+                "start_date": "2024-01-01T00:00:00",
+                "end_date": None,
+                "is_current": True,
+                "translations": [
+                    {
+                        "profile_translation_id": 501,
+                        "language": "sv-SE",
+                        "employer": "Exempel AB",
+                        "title": "Utvecklare",
+                        "description": None,
+                    }
+                ],
+                "skills": [{"keyword_id": 22070, "name": "Python"}],
+            }
+        ],
+        "education": [],
+        "languages": [
+            {"id": 8001, "language_id": 2, "name": "English", "culture": "en", "level": 5}
+        ],
+        "employers": [
+            {
+                "id": 9101,
+                "start_date": "2020-01-01T00:00:00",
+                "end_date": "2023-12-31T00:00:00",
+                "is_current": False,
+                "translations": [
+                    {
+                        "profile_translation_id": 501,
+                        "language": "sv-SE",
+                        "name": "Exempel AB",
+                        "title": "Konsult",
+                        "description": "",
+                    }
+                ],
+            }
+        ],
+        "training": [
+            {
+                "id": 9201,
+                "training_type": 1,
+                "year": 2025,
+                "expires": None,
+                "code": "EX-1",
+                "translations": [
+                    {
+                        "profile_translation_id": 501,
+                        "language": "sv-SE",
+                        "title": "Exempelcertifikat",
+                        "description": None,
+                        "issuer": "Example Institute",
+                        "supplier": None,
+                    }
+                ],
+            }
+        ],
+    }
+    assert profile.created is not None and profile.created.tzinfo is None
+    assert profile.raw["skills"]
