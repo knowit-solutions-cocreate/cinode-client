@@ -189,7 +189,7 @@ Tests:
 - `cinode schema` gains `profile`, `resume` and `resume-summary`.
 
 Tests:
-- [ ] **Review focus 5 and 6:** one parametrized resource test, beside
+- [x] **Review focus 5 and 6:** one parametrized resource test, beside
   `test_me_resolves_to_the_token_user`. For the paths:
   - `users.profile.get("me")` requests `/v0.1/companies/99/users/1001/profile`
   - `users.resumes.list("me")` requests `…/users/1001/resumes`
@@ -197,17 +197,17 @@ Tests:
 
   For the guard, `resume_id` values `True`, `0` and `"5"` raise `ValueError`,
   and no request is made.
-- [ ] Live: `users profile get me`: `.user_id` is the owner, and the output
+- [x] Live: `users profile get me`: `.user_id` is the owner, and the output
   validates against `Profile` (as `test_users_skills_list_me` does for
   `Skill`).
-- [ ] Live: extend `test_unreadable_user`, or add a case beside it:
+- [x] Live: extend `test_unreadable_user`, or add a case beside it:
   `users profile get <unreadable>` exits 4 or 5 with a `ForbiddenError` or
   `NotFoundError` envelope.
-- [ ] Live: `users resumes list me`: every element's `.user_id` is the owner.
+- [x] Live: `users resumes list me`: every element's `.user_id` is the owner.
   If the list is non-empty, `users resumes get me <first id>` gives that
   `.id` and a non-empty `.blocks`. If it is empty, that half is skipped with
   `pytest.skip` and a message that names no data.
-- [ ] README:
+- [x] README:
   - the library quick start shows `c.users.profile.get("me")` and the resume
     calls
   - the CLI list gains the three commands, with the empty-list note
@@ -215,7 +215,7 @@ Tests:
     profiles and resumes
 
   CHANGELOG: an entry under *Unreleased*.
-- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m "live
+- [x] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m "live
   and not slow"`. Commit in two chunks: "Add users.profile and users.resumes",
   "Add the profile and resume commands".
 

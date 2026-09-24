@@ -5,7 +5,8 @@ meant for agents first and humans second.
 
 It is **read-only by construction**: the transport can only issue GET, so there
 is no write path to enable by mistake. Version 0.1 covers skills, plus the
-users, teams and keywords needed to reach them. See
+users, teams and keywords needed to reach them. Version 0.2 adds user
+profiles (the data behind a CV) and resumes. See
 [`docs/design.md`](docs/design.md) for the design,
 [`docs/roadmap.md`](docs/roadmap.md) for what comes next, and
 [`docs/plans/`](docs/plans/) for the plans of released versions.
@@ -62,6 +63,10 @@ with Cinode.from_env() as c:              # or Cinode(access_id=..., access_secr
     python = c.keywords.search("python")  # list[Keyword]
     teams = c.users.teams.list("me")      # list[Team]
 
+    profile = c.users.profile.get("me")   # Profile
+    resumes = c.users.resumes.list("me")  # list[ResumeSummary]
+    resume = c.users.resumes.get("me", resumes[0].id)  # Resume, with .blocks
+
     result = team_skills(c, teams[0].id)  # TeamSkills
     result.members                        # list[MemberSkills(user, skills)]
     result.skipped                        # list[Skipped(user, reason)]
@@ -91,6 +96,9 @@ cinode users get <user>
 cinode users skills list <user>
 cinode users skills get <user> <keyword-id>
 cinode users teams list <user>
+cinode users profile get <user>
+cinode users resumes list <user>
+cinode users resumes get <user> <resume-id>
 cinode teams list [--match TEXT]
 cinode teams get <team-id>
 cinode teams members list <team-id>
@@ -127,6 +135,9 @@ cinode teams list --match cocreate | jq '.[].id'
   Progress is written only when stderr is a terminal.
 - `teams skills` exits 0 even when members were skipped; they are listed in
   its `skipped` array.
+- `users resumes list` gives an empty list, not a 403, for a user whose data
+  you cannot read, so an empty list means no resumes, or no access.
+  `users profile get` tells the two apart.
 - `--match` on `teams list` is a case-insensitive substring filter, applied on
   the client side. Anything more complex belongs in `jq`.
 - `--table` output for humans is planned, not in v1.

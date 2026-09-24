@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import pytest
 from pydantic import ValidationError
 
-from cinode.models import Skill
+from cinode.models import Profile, Skill
 
 if TYPE_CHECKING:
     from live.conftest import Cinode, Jq, Owner
@@ -97,8 +97,33 @@ def test_teams_get_then_list_match(cinode: Cinode, jq: Jq, owner: Owner) -> None
     assert found, "team not in teams list --match"
 
 
-def test_unreadable_user(cinode: Cinode, owner: Owner) -> None:
-    result = cinode("users", "skills", "list", owner.unreadable_user_id)
+def test_users_profile_get_me(cinode: Cinode, jq: Jq, owner: Owner) -> None:
+    out = ok(cinode, "users", "profile", "get", "me")
+    found = jq(".user_id == $id", out, id=owner.user_id)
+    assert found, "users profile get me is not the owner"
+    errors = None
+    try:
+        Profile.model_validate(json.loads(out))
+    except ValidationError as error:
+        errors = [(e["loc"], e["type"]) for e in error.errors(include_input=False)]
+    assert errors is None, "profile does not validate"
+
+
+def test_users_resumes_me(cinode: Cinode, jq: Jq, owner: Owner) -> None:
+    out = ok(cinode, "users", "resumes", "list", "me")
+    mine = jq("all(.[]; .user_id == $id)", out, id=owner.user_id)
+    assert mine, "a listed resume is not the owner's"
+    ids = [resume["id"] for resume in json.loads(out)]
+    if not ids:
+        pytest.skip("the owner has no resumes")
+    resume = ok(cinode, "users", "resumes", "get", "me", ids[0])
+    found = jq(".id == $id and (.blocks | length > 0)", resume, id=ids[0])
+    assert found, "resumes get is not the listed resume, or has no blocks"
+
+
+@pytest.mark.parametrize("command", [("skills", "list"), ("profile", "get")])
+def test_unreadable_user(cinode: Cinode, owner: Owner, command: tuple[str, str]) -> None:
+    result = cinode("users", *command, owner.unreadable_user_id)
     code = result.returncode
     assert code in (4, 5)
     empty = result.stdout == ""
