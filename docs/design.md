@@ -5,9 +5,10 @@ first audience: the library is meant to be wrapped by an MCP server (a separate,
 later project), and the CLI is meant to be driven by chat agents. Humans come
 second.
 
-Version 1 covers skills, plus the users, teams and keywords needed to reach them.
-The structure is built so the rest of the API can be added without breaking what
-is already there.
+Version 0.1 covers skills, plus the users, teams and keywords needed to reach
+them. Version 0.2 adds user profiles (the CV data) and resumes. The structure
+is built so the rest of the API can be added without breaking what is already
+there.
 
 ## Goals
 
@@ -31,6 +32,9 @@ is already there.
   library. This design makes that wrapper thin; it does not build it.
 - **Skill sets.** `GET companies/{cid}/skill-sets` returns 403 for a non-admin
   owner and there is no per-set read. It cannot work from an ordinary account.
+- **Choosing a profile translation.** No parameter or path selects one. The
+  profile returns the texts that exist, labelled by language, and the caller
+  picks. See *Profiles and resumes*.
 - **Async.** A sync client covers the CLI and a first MCP server. An async
   transport can be added later behind the same resource classes (see
   *Extending*).
@@ -77,15 +81,65 @@ public) is a reference, not an input to a build step. It is unreliable:
 - `OPTIONS` on a path returns an `allow` header with the real methods, which is
   more trustworthy than the spec.
 
+### Profiles and resumes
+
+Verified against the live API on 2026-09-24, across one team's 56 members (50
+readable). The spec is wrong about resumes in two ways, noted below.
+
+- **`users/{u}/profile`** (`CompanyUserProfileFullModel`) is large: about
+  500 KB for a median profile, 1.6 MB at most. It holds nine section arrays
+  (`workExperience`, `education`, `languages`, `skills`, `employers`,
+  `training`, `references`, `extSkills`, `commitments`) and a `presentation`.
+  Its `skills` hold the same keywords and levels as `users/{u}/skills`, each
+  with change history and synonyms added (325 KB against 68 KB), and every
+  work experience repeats its skills in full. In those nested skills, as in
+  `users/{u}/skills`, `id` is the keyword id (it equals `keyword.id` in all
+  72 checked).
+- **Translations.** The texts of a section element sit in its `translations`
+  array, one entry per language that has text for it, each with a
+  `profileTranslationId` and the language at
+  `profileTranslation.languageBranch.language.culture` (`"sv-SE"`, always
+  populated, and distinct within an element). 41 of 50 profiles have two or
+  more translations. Elements then hold one or two entries: fewer than the
+  profile's translations when a language has no text, and never more than
+  two, even in profiles with three or four. Empty strings occur inside
+  entries (`personalDescription: ""`), as well as nulls.
+- **Employers** (41 of 50 profiles, 169 elements): `startDate`, `endDate`
+  (null when current), `isCurrent`, and texts `name`, `title` and
+  `description` in `translations`.
+- **Training** (35 of 50 profiles, 170 elements): `trainingType` (0 course,
+  1 certification, from the spec's prose enum), `year`, `expireDate` and
+  `code` at the top level; `title`, `description`, `issuer` and `supplier` in
+  `translations`. There are no start or end dates.
+- `references`, `extSkills` and `commitments` are used by few profiles, and
+  loosely: `commitments` held publications and `extSkills` free-form notes on
+  the profiles seen.
+- **`users/{u}/resumes`** lists a user's resumes, with metadata only
+  (`CompanyUserResumeBaseModel`, about 1 KB each).
+- **`users/{u}/resumes/{id}` returns the content too**, which the spec does not
+  say: a `resume` object (about 320 KB) holding around 70 keys of template and
+  PDF settings, `blocks`, and each block again under a named key. The
+  `resumes/{id}/dynamic` path from the spec returns 404.
+- **Resume blocks are template-driven.** Each has a string `blockId`, an int
+  `blockType` with no enum in the spec, a `friendlyBlockName`, a `heading`, an
+  `order`, and either a `data` list of items or its content inline (`title`,
+  `description`, `personalDescription`, `text`). The item shapes vary by block
+  type, and item ids are strings.
+- **Permissions match skills.** The users whose skills return 403 also return
+  403 on their profile. But `resumes` returns **200 with an empty list** for
+  them, so no access looks the same as no resumes.
+- **Dates** come without a timezone. Profile and resume timestamps carry six
+  or seven fractional digits, which pydantic truncates to microseconds.
+
 ## Architecture
 
 ```
 CLI (typer)        cinode users skills list me
    │
-Library API        Cinode ── .users ── .skills / .teams
+Library API        Cinode ── .users ── .skills / .teams / .profile / .resumes
    │                      ── .teams ── .members
    │                      ── .keywords
-   │               cinode.ops.team_skills(...)
+   │               cinode.ops.team_skills(...) / team_profiles(...)
    │
 Resources          one class per URL segment; builds paths, parses models
    │
@@ -113,13 +167,17 @@ src/cinode/
     users.py           UserSummary, User
     skills.py          Skill, Keyword
     teams.py           Team, TeamMember
+    profiles.py        Profile and its sections
+    resumes.py         ResumeSummary, Resume, ResumeBlock
   resources/
     _base.py           Resource base, UserRef resolution, id checks
-    users.py           Users, UserSkills, UserTeams
+    users.py           Users, UserSkills, UserTeams, UserProfile, UserResumes
     teams.py           Teams, TeamMembers
     keywords.py        Keywords
   ops/
+    _members.py        walk_members(), the shared loop over a team's members; Skipped
     team_skills.py     team_skills(), TeamSkills
+    team_profiles.py   team_profiles(), TeamProfiles
   cli/
     __init__.py        typer app, entry point
     _output.py         JSON/JSONL emitting, error envelope, exit codes
@@ -146,6 +204,9 @@ c.users.get(user)                         # -> User
 c.users.skills.list(user)                 # -> list[Skill]
 c.users.skills.get(user, keyword_id)      # -> Skill
 c.users.teams.list(user)                  # -> list[Team]
+c.users.profile.get(user)                 # -> Profile
+c.users.resumes.list(user)                # -> list[ResumeSummary]
+c.users.resumes.get(user, resume_id)      # -> Resume
 
 c.teams.list()                            # -> list[Team]
 c.teams.get(team_id)                      # -> Team
@@ -153,8 +214,9 @@ c.teams.members.list(team_id)             # -> list[TeamMember]
 
 c.keywords.search(term)                   # -> list[Keyword]
 
-from cinode.ops import team_skills
+from cinode.ops import team_profiles, team_skills
 team_skills(c, team_id)                   # -> TeamSkills
+team_profiles(c, team_id)                 # -> TeamProfiles
 ```
 
 Wherever a user is expected, the argument is a `UserRef = int | Literal["me"]`,
@@ -165,7 +227,7 @@ Ids are checked before any request, because callers such as an MCP server pass
 values an agent supplied, and type hints do nothing at run time. A user ref must
 be exactly `"me"` or a positive `int` that is not a `bool`; digit strings such
 as `"158773"` are rejected, and the CLI converts its arguments before calling.
-Every other id (`keyword_id`, `team_id`) must be a positive `int` that is not a
+Every other id (`keyword_id`, `team_id`, `resume_id`) must be a positive `int` that is not a
 `bool`. A keyword search term must be a `str`; it is stripped, and a term that
 is then empty or made only of dots (`.`, `..`) is rejected, since httpx would
 collapse it as a dot segment and reach a different endpoint. Anything else
@@ -195,11 +257,21 @@ convention.
 | `users.skills.list(u)` | `users/{u}/skills` | `CompanyUserSkillModel[]` |
 | `users.skills.get(u, k)` | `users/{u}/skills/{k}` | `CompanyUserSkillModel` |
 | `users.teams.list(u)` | `users/{u}/teams` | `TeamBaseModel[]` |
+| `users.profile.get(u)` | `users/{u}/profile` | `CompanyUserProfileFullModel` |
+| `users.resumes.list(u)` | `users/{u}/resumes` | `CompanyUserResumeBaseModel[]` |
+| `users.resumes.get(u, r)` | `users/{u}/resumes/{r}` | `CompanyUserResumeBaseModel` plus `resume` (see *Profiles and resumes*) |
 | `teams.list()` | `teams` | `TeamModel[]` |
 | `teams.get(t)` | `teams/{id}` | `TeamModel` |
 | `teams.members.list(t)` | `teams/{t}/members` | `TeamMemberModel[]` |
 | `keywords.search(q)` | `keywords/search/{term}` | `KeywordModel[]` |
 | `whoami()` | `/_whoami` (outside `v0.1`) | `WhoAmIResponseModel` |
+
+`users.resumes.list(u)` passes Cinode's answer through. For a user whose data
+the owner cannot read, that is an empty list, not a 403, so an empty list means
+"no resumes, or no access". The library does not probe to tell them apart; a
+caller that needs to know calls `users.profile.get(u)` or
+`users.skills.list(u)`, which raise `ForbiddenError`. The docstring and the CLI
+help say so.
 
 ### Operations
 
@@ -213,10 +285,24 @@ result.members     # list[MemberSkills(user: UserSummary, skills: list[Skill])]
 result.skipped     # list[Skipped(user: UserSummary, reason: "forbidden" | "not_found")]
 ```
 
-A 403 or 404 on one member is recorded in `skipped` and never ends the run.
-Other errors do end it. `on_progress(done, total, entry)` is an optional
-callback, given the `MemberSkills` or `Skipped` entry just recorded; the
-library does no printing of its own.
+```python
+result = team_profiles(c, 9873, on_progress=None)
+result.team        # Team
+result.members     # list[MemberProfile(user: UserSummary, profile: Profile)]
+result.skipped     # list[Skipped], as for team_skills
+```
+
+Both walk the same loop, in `ops/_members.py`: the team is fetched, members
+are deduplicated by user id in first-seen order (preferring an entry with the
+user inline), and one call is made per member. A 403 or 404 on one member is
+recorded in `skipped` and never ends the run. Other errors do end it.
+`on_progress(done, total, entry)` is an optional callback, given the entry
+just recorded; the library does no printing of its own.
+
+`team_profiles` exists because every team-level question about profiles
+(who is placed where, who has worked with what) needs it. Its result is the
+lean `Profile` per member: about 1 MB for a 50-person team, against about
+25 MB raw. It makes one profile request per member, in sequence.
 
 ## Models
 
@@ -276,6 +362,100 @@ model does not pass it through. `is_rated` is a computed boolean.
 - `TeamMember`: `user_id` (`companyUserId`, else `companyUser`'s id), `team_id`,
   `user: UserSummary | None` (from `companyUser`), `availability_percent`.
 - `WhoAmI`: `company_id`, `user_id`.
+
+### Profile
+
+`Profile` is a lean projection of `CompanyUserProfileFullModel`. It types the
+sections that were verified live and leaves out the rest, which `.raw` still
+holds. Adding a section later is an added field, so it breaks nothing.
+
+| Field | Source | Notes |
+|---|---|---|
+| `id: int` | `id` | the profile's id |
+| `user_id: int \| None` | `companyUserId` | |
+| `language: str \| None` | `profileTranslation.languageBranch.language.culture` | the profile's default translation, `"sv-SE"` |
+| `created: datetime \| None` | `createdWhen` | |
+| `updated: datetime \| None` | `updatedWhen` | |
+| `presentation: Presentation \| None` | `presentation` | |
+| `work_experience: list[WorkExperience]` | `workExperience` | null → `[]` |
+| `education: list[Education]` | `education` | null → `[]` |
+| `languages: list[ProfileLanguage]` | `languages` | null → `[]` |
+| `employers: list[Employer]` | `employers` | null → `[]` |
+| `training: list[Training]` | `training` | null → `[]` |
+
+**Left out, on purpose:** the profile's `skills` (the same data as
+`users.skills.list`, at five times the size), and `references`, `extSkills`
+and `commitments`, which few profiles use and whose meaning varies.
+
+**Translations stay as lists.** Each element that has texts keeps a
+`translations: list[...]` with one entry per language that has text, in
+Cinode's order, never flattened and never filled in. Every text entry has
+`profile_translation_id: int | None` (`profileTranslationId`) and
+`language: str | None` (`profileTranslation.languageBranch.language.culture`),
+plus its own texts. Texts are passed through as they come: an empty string
+stays `""` and a null stays `None`; callers treat both as missing.
+
+**Types.** Every `id` is a required `int`, as for every entity. Text fields
+(titles, descriptions, names, `culture`, `language`) are `str | None` unless
+the table says otherwise, and other ids (`language_id`,
+`profile_translation_id`) are `int | None`.
+
+- `Presentation`: `id`, `translations: list[PresentationText]`.
+  `PresentationText` adds `title`, `description` and `personal_description`
+  (`personalDescription`).
+- `WorkExperience`: `id`, `start_date` and `end_date` (`datetime | None`;
+  `endDate` is null for a current one), `is_current: bool` (null → `False`),
+  `translations: list[WorkExperienceText]` and `skills: list[SkillRef]`.
+  `WorkExperienceText` adds `employer`, `title` and `description`.
+- `SkillRef`: `keyword_id: int` (`id`, else `keyword.id`, as for `Skill`) and
+  `name: str` (`keyword.masterSynonym`, null → `""`). A work experience's
+  skills are reduced to this reference; `users.skills.get` has the rest.
+- `Education`: `id`, `start_date`, `end_date`,
+  `translations: list[EducationText]`. `EducationText` adds `school_name`
+  (`schoolName`), `program_name` (`programName`), `degree` and `description`.
+- `ProfileLanguage`: `id`, `language_id` (`language.languageId`), `name`
+  (`language.name`), `culture` (`language.culture`), `level: int | None`.
+  The level scale is not documented and is passed through as it comes.
+- `Employer`: `id`, `start_date`, `end_date`, `is_current: bool` (null →
+  `False`), `translations: list[EmployerText]`. `EmployerText` adds `name`,
+  `title` and `description`.
+- `Training`: `id`, `training_type: int | None` (`trainingType`, an open enum:
+  0 course, 1 certification), `year: int | None`, `expires: datetime | None`
+  (`expireDate`), `code`, `translations: list[TrainingText]`. `TrainingText`
+  adds `title`, `description`, `issuer` and `supplier`.
+
+Null translation and skill arrays become `[]`, as the sections do.
+
+### Resumes
+
+- `ResumeSummary` (one per `resumes` element): `id`, `user_id`
+  (`companyUserId`), `title`, `description`, `language` (`language.culture`),
+  `template_id` (`template.id`), `template_name` (`template.title`), `created`
+  (`created.time`), `updated` (`updated.time`), `is_public: bool` (null →
+  `False`), `profile_translation_id`, `view_url` (`viewUrl`) and
+  `public_view_url` (`publicViewUrl`). `template_id` and
+  `profile_translation_id` are `int | None`, `created` and `updated` are
+  `datetime | None`, and the texts and URLs are `str | None`.
+- `Resume(ResumeSummary)`: adds `blocks: list[ResumeBlock]` from
+  `resume.blocks`, in Cinode's order (null → `[]`). The template and PDF
+  settings, and the blocks repeated under named keys, are left out; `.raw`
+  holds them.
+- `ResumeBlock`: `block_id: str` (`blockId`), `block_type: int | None`
+  (`blockType`, an open enum like `keyword_type`), `name: str | None`
+  (`friendlyBlockName`), `heading: str | None`, `order: int | None`, the
+  inline texts
+  `title`, `description`, `personal_description` and `text` (all
+  `str | None`, set only on blocks that carry their content inline), and
+  `items: list[dict[str, Any]]` from `data` (null → `[]`).
+
+**Block items are passed through untouched.** Their shape depends on the block
+type and the template, and no enum names the types, so typing them would be
+guesswork checked against one account. They are the one place where output
+keeps Cinode's camelCase keys. `block_id` is required like any entity id, and
+an item that is not an object fails the parse; both were true of every block
+seen, and a resume that breaks them raises `UnexpectedResponseError` rather
+than being half read. Typing an item kind later would change `items`'
+type, which is breaking, so it would come as a new field beside `items`.
 
 ## Transport
 
@@ -355,10 +535,14 @@ cinode users get <user>
 cinode users skills list <user>
 cinode users skills get <user> <keyword-id>
 cinode users teams list <user>
+cinode users profile get <user>
+cinode users resumes list <user>
+cinode users resumes get <user> <resume-id>
 cinode teams list [--match TEXT]
 cinode teams get <team-id>
 cinode teams members list <team-id>
 cinode teams skills <team-id>          # cinode.ops.team_skills
+cinode teams profiles <team-id>        # cinode.ops.team_profiles
 cinode keywords search <term>
 cinode schema [<model>]                # JSON Schema for output models
 ```
@@ -391,12 +575,17 @@ cinode schema [<model>]                # JSON Schema for output models
 | 5 | not found |
 | 6 | rate limited |
 
-- `teams skills` exits 0 even when members were skipped. Skipped members appear
-  in the output's `skipped` array.
+- `teams skills` and `teams profiles` exit 0 even when members were skipped.
+  Skipped members appear in the output's `skipped` array. Neither takes
+  `--raw`, since their results are built, not parsed.
 - `--match` on `teams list` is a case-insensitive substring filter applied on
   the client side. It exists because the list holds 478 teams and an agent's
   context is limited; anything more complex belongs in `jq`.
-- `--table` output for humans is planned, not in v1.
+- `--raw` on `users profile get` and `users resumes get` writes Cinode's whole
+  payload, which is hundreds of kilobytes. The default output is the lean
+  model.
+- `--table` output for humans is planned for a later version (see the
+  roadmap).
 
 ## Extending
 
@@ -417,8 +606,9 @@ Rules for growth that keep existing callers working:
 6. Versioning follows semver. While the version is 0.x, minor versions may
    break; each break is recorded in `CHANGELOG.md`.
 
-Areas likely to come next, in rough order: user profiles and resumes, user
-roles, team managers, keyword lookups.
+Areas likely to come next, in rough order: user roles, team managers, keyword
+lookups, and the profile sections v0.2 leaves out (`references`, `extSkills`,
+`commitments`).
 
 ## Data handling
 
@@ -446,9 +636,10 @@ What earns a unit test:
   mapping, bodies that are not JSON, GET-only.
 - **Tokens:** caching, refresh near expiry, local-clock lifetime.
 - **Models:** the mapping of a real-shaped skill payload, including
-  `level: 0` → `None`, and `TeamMember`'s user id resolution.
+  `level: 0` → `None`, and `TeamMember`'s user id resolution; the lean
+  projections of a profile and a resume, including what they leave out.
 - **Resources and ops:** `me` resolution, keyword encoding, 403/404 skipping in
-  `team_skills`.
+  `team_skills` and `team_profiles`.
 - **CLI:** the exact JSON output shape, the error envelope and the exit codes.
 
 Everything else is covered by the live acceptance suite, which exercises the
@@ -471,7 +662,12 @@ normal use:
 | `cinode keywords search python` | contains `id == 22070` |
 | `cinode teams members list 9873` | contains the owner |
 | `cinode users skills list 1` (or another unreadable id) | exit code 4 or 5, error JSON on stderr |
+| `cinode users profile get me` | `.user_id` matches; the output validates against `Profile` |
+| `cinode users profile get 1` (the unreadable id) | exit code 4 or 5, error JSON on stderr |
+| `cinode users resumes list me` | every element's `.user_id` matches |
+| `cinode users resumes get me <first id>` | `.id` is that id; `.blocks` is non-empty (skipped if the owner has no resumes) |
 | `cinode teams skills 9873` | *slow*: every member is in `members` or `skipped`; the owner is in `members` |
+| `cinode teams profiles 9873` | *slow*: the same, with the owner's `.profile.user_id` matching |
 
 The ids default to the author's (user 158773, team 9873, keyword 22070 "Python"
 with synonym 2930) and can be overridden with `CINODE_TEST_USER_ID`,
