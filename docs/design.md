@@ -560,7 +560,8 @@ whichever source the credentials came from.
   access_secret = "..."
   ```
 
-  Unknown keys are ignored, so a file written by a later version still loads.
+  Unknown keys are ignored, so a file written by a later version still loads,
+  as long as it keeps the two keys.
   A file that cannot be read, is not valid TOML, or lacks either key as a
   non-empty string raises `AuthError`, whose message names the file and the
   key but never a value.
@@ -592,9 +593,11 @@ Checks a set of credentials against Cinode and saves them to the config file.
      first line of stdin.
 
    The secret is never a command-line option, since arguments show up in
-   `ps` and in shell history. `--from-env` together with `--access-id`, no
-   `--access-id` without a terminal, or an empty secret is a usage error
-   (exit 2), raised before any request.
+   `ps` and in shell history. These are usage errors (exit 2), raised before
+   any request: `--from-env` together with `--access-id`; `--from-env` with
+   no usable credentials in the environment; no `--access-id` without a
+   terminal; an empty AccessId or secret; and a value with a control
+   character, or one that is not valid UTF-8.
 3. It verifies them with `whoami()`, a GET like every other call, and honours
    `CINODE_BASE_URL` and `CINODE_TIMEOUT`. If Cinode rejects them, nothing is
    written (exit 3).

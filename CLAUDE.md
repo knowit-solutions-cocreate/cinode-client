@@ -56,8 +56,10 @@ uv run ruff format --check
 uv run pyright
 ```
 
-Live tests run only with credentials in the environment, never in CI:
-`CINODE_LIVE_TESTS=1 uv run pytest -m live`.
+Live tests run only with credentials, never in CI:
+`CINODE_LIVE_TESTS=1 uv run pytest -m live`. They may take credentials from
+the config file, but the `cinode init` round trip needs them in the
+environment and is skipped otherwise.
 
 ## Workflow: orchestrated pull requests
 
