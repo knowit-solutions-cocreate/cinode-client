@@ -5,6 +5,15 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+- **Breaking:** `Cinode.from_env()` is removed; use `Cinode()`, which reads
+  the environment whenever no credentials are passed.
+- **Credentials file:** `Cinode()` and the CLI read `access_id` and
+  `access_secret` from `~/.config/cinode/credentials.toml` (or
+  `$XDG_CONFIG_HOME/cinode/credentials.toml`, or `$CINODE_CREDENTIALS_FILE`)
+  when the environment holds no credentials. The environment wins as a whole.
+- `Cinode(access_id, access_secret)` now honours `CINODE_BASE_URL` and
+  `CINODE_TIMEOUT` when `base_url` and `timeout` are not passed.
+
 ## 0.2.0 — 2026-09-24
 
 User profiles and resumes, as lean, typed projections of Cinode's payloads.

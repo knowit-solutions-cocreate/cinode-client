@@ -55,16 +55,21 @@ def user_ref(value: str) -> UserRef:
     raise typer.BadParameter(f'must be a numeric user id or "me", not {value!r}.')
 
 
+def client() -> Cinode:
+    """The client every command uses: credentials from the environment, else the file."""
+    return Cinode()
+
+
 def run(fetch: Callable[[Cinode], Result], *, raw: bool = False, jsonl: bool = False) -> None:
-    """Call `fetch` with a client from the environment, and write its result to stdout.
+    """Call `fetch` with a client from `client()`, and write its result to stdout.
 
     A `CinodeError` is written to stderr as `{"error": ...}`, and the process
     exits with its code. Validate arguments before calling `run()`: anything
     else raised in here is a bug, and surfaces as one.
     """
     try:
-        with Cinode.from_env() as client:
-            result = fetch(client)
+        with client() as c:
+            result = fetch(c)
     except CinodeError as error:
         fail(error)
     write(result, raw=raw, jsonl=jsonl)

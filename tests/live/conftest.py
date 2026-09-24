@@ -39,6 +39,11 @@ def _env_int(name: str, default: int) -> int:
     return int(os.environ.get(name, default))
 
 
+@pytest.fixture
+def _no_credentials_file() -> None:  # pyright: ignore[reportUnusedFunction]
+    """Overrides the unit tests' fixture: the live suite may use the credentials file."""
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _require_jq() -> None:  # pyright: ignore[reportUnusedFunction]
     if shutil.which("jq") is None:

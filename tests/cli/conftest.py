@@ -28,8 +28,8 @@ def cli_api(monkeypatch: pytest.MonkeyPatch) -> Iterator[respx.MockRouter]:
     monkeypatch.delenv("CINODE_ACCESS_ID", raising=False)
     monkeypatch.delenv("CINODE_ACCESS_SECRET", raising=False)
     monkeypatch.setattr(
-        "cinode.cli._output.Cinode.from_env",
-        lambda: Cinode._with_transport(Transport(Settings.from_env(), sleep=_no_sleep)),
+        "cinode.cli._output.client",
+        lambda: Cinode._with_transport(Transport(Settings.resolve(), sleep=_no_sleep)),
     )
     with respx.mock(base_url=BASE_URL, assert_all_called=False) as router:
         router.get("/token", name="token").mock(
