@@ -5,6 +5,11 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+## 0.3.0 — 2026-09-24
+
+Credentials set up once: `cinode init` saves them to a private credentials
+file, which the CLI and the library read when the environment has none.
+
 - **Breaking:** `Cinode.from_env()` is removed; use `Cinode()`, which reads
   the environment whenever no credentials are passed.
 - **Credentials file:** `Cinode()` and the CLI read `access_id` and
