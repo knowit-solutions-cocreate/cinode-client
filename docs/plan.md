@@ -6,12 +6,12 @@
 > tests for coverage. Steps use checkboxes for tracking.
 
 **Goal:** v0.3 lets a user or an agent set up credentials once. `cinode init`
-checks them and saves them to a config file, which the CLI and the library
+checks them and saves them to a credentials file, which the CLI and the library
 read whenever the environment has no credentials. `cinode config show` says
 where the credentials in use come from.
 
 **Architecture:** no new layers. `_config.py` learns to find and read the
-config file, and `Cinode` gains `from_config()`, which the CLI's `run()`
+credentials file, and `Cinode` gains `from_config()`, which the CLI's `run()`
 switches to. The one new CLI module, `cli/config.py`, holds `cinode config
 show` and `cinode init`, and with it the only code that writes a file. The
 library only reads.
@@ -20,7 +20,7 @@ library only reads.
 of our own write it. No new dependencies.
 
 **Spec:** [`docs/design.md`](design.md), in particular *Configuration* (with
-*Where credentials come from*, *The config file*, `cinode init` and `cinode
+*Where credentials come from*, *The credentials file*, `cinode init` and `cinode
 config show`) and *Data handling*. Read them before starting; this plan does
 not repeat them.
 
@@ -34,9 +34,9 @@ not repeat them.
   pass unedited. The CLI resolves credentials through `from_config()`, which
   behaves the same as before whenever the environment holds credentials. The
   only visible difference is the text of the "no credentials" message, which
-  now names the config file; its type and exit code stay the same.
+  now names the credentials file; its type and exit code stay the same.
 - **Tests never touch the real home directory.** Every file a test writes goes
-  under `tmp_path`. `CINODE_CONFIG` or `HOME` is set with `monkeypatch`, never
+  under `tmp_path`. `CINODE_CREDENTIALS_FILE` or `HOME` is set with `monkeypatch`, never
   left to default.
 - **The secret never appears in output:** not on stdout or stderr, not in an
   error message, not in a `repr`, and not in a live test's failure message.
@@ -52,7 +52,7 @@ in the task named.
 1. **The environment wins as a whole.** With credentials in the environment,
    the file is never opened, so even a malformed file is ignored. Half a pair
    raises the existing error and never falls back to the file. *(Task 1)*
-2. **Unit tests never read the developer's own config file.** Without the
+2. **Unit tests never read the developer's own credentials file.** Without the
    autouse fixture, `test_no_credentials_is_an_auth_error` would reach a real
    account on any machine where `cinode init` has been run. *(Task 1)*
 3. **Error messages about the file name the file and the key, never a
@@ -77,20 +77,20 @@ in the task named.
 
 ```
 src/cinode/
-  _config.py        config_path, read_config, decode_basic, env_options, Settings.from_config
+  _config.py        credentials_path, read_credentials, decode_basic, env_options, Settings.from_config
   _client.py        Cinode.from_config
   cli/  config.py (new)  __init__.py  _output.py  schema.py
 tests/
-  conftest.py       autouse _no_config_file
+  conftest.py       autouse _no_credentials_file
   cli/conftest.py   patch Cinode.from_config instead of from_env
-  live/conftest.py  no-op _no_config_file override; cinode(..., env=...)
+  live/conftest.py  no-op _no_credentials_file override; cinode(..., env=...)
   test_config.py  cli/test_cli.py  live/test_acceptance.py
 README.md  CHANGELOG.md
 ```
 
 ---
 
-### Task 1: Read credentials from the config file, and `cinode config show`
+### Task 1: Read credentials from the credentials file, and `cinode config show`
 
 **Files:** `src/cinode/_config.py`, `src/cinode/_client.py`,
 `src/cinode/cli/_output.py`, `src/cinode/cli/config.py` (new),
@@ -101,13 +101,13 @@ README.md  CHANGELOG.md
 
 **Produces:**
 - In `_config.py`:
-  - `config_path(env: Mapping[str, str] | None = None) -> Path`, following the
-    design's *Location* rule. `CINODE_CONFIG` has `~` expanded, and a
+  - `credentials_path(env: Mapping[str, str] | None = None) -> Path`, following the
+    design's *Location* rule. `CINODE_CREDENTIALS_FILE` has `~` expanded, and a
     relative `XDG_CONFIG_HOME` is ignored. `~` and the fallback home come from
     `Path.home()` (that is, `HOME` in `os.environ`), not from `env`. The path
     is never `.resolve()`d, since on macOS that turns `/var` into
     `/private/var` and breaks exact comparisons.
-  - `read_config(path: Path) -> tuple[str, str] | None`, which gives
+  - `read_credentials(path: Path) -> tuple[str, str] | None`, which gives
     `(access_id, access_secret)`. It returns `None` when there is no file at
     `path`. It raises `AuthError` when the file cannot be read (any `OSError`,
     a directory at the path, or `UnicodeDecodeError`), is not valid TOML, or
@@ -139,7 +139,7 @@ README.md  CHANGELOG.md
       `CINODE_ACCESS_SECRET`, or a `CINODE_BASIC` that is non-empty once its
       whitespace is dropped. An empty or blank `CINODE_BASIC` counts as
       unset, so the file is tried.
-    - Otherwise it reads `read_config(path or config_path(env))` and builds
+    - Otherwise it reads `read_credentials(path or credentials_path(env))` and builds
       the settings with `source="file"`, using `env_options(env)` for the base
       URL and timeout.
     - With neither, it raises `AuthError` with a message that begins
@@ -154,7 +154,7 @@ README.md  CHANGELOG.md
   - `ConfigReport(CinodeModel)`, with the fields of the design's table
 - `show` resolves credentials with `Settings.from_config()`. A `CinodeError`
   goes to `fail()` (exit 3 for an `AuthError`). On success, `show` stats
-  `config_path()` for `file_exists`, `file_mode` (`f"{stat.S_IMODE(mode):04o}"`)
+  `credentials_path()` for `file_exists`, `file_mode` (`f"{stat.S_IMODE(mode):04o}"`)
   and `file_private` (`(mode & 0o077) == 0`), and writes the report with
   `write(..., raw=False, jsonl=False)`. It makes no request.
   `ConfigReport.source` is `Literal["env", "file"]`, while `Settings.source`
@@ -162,10 +162,10 @@ README.md  CHANGELOG.md
   explicitly, as strict pyright requires.
 - Registered in `cli/__init__.py` as `app.add_typer(config.app, name="config")`.
   `cinode schema` gains `config`.
-- `tests/conftest.py`: an autouse fixture `_no_config_file` sets
-  `CINODE_CONFIG` to `tmp_path / "absent" / "config.toml"`.
+- `tests/conftest.py`: an autouse fixture `_no_credentials_file` sets
+  `CINODE_CREDENTIALS_FILE` to `tmp_path / "absent" / "credentials.toml"`.
   `tests/live/conftest.py` overrides it with a no-op fixture of the same name,
-  so the live suite may use the developer's config file.
+  so the live suite may use the developer's credentials file.
 - `tests/cli/conftest.py`: the `cli_api` fixture patches
   `cinode.cli._output.Cinode.from_config` (instead of `from_env`) with a
   client built on `Settings.from_config()` and the no-sleep transport. Nothing
@@ -186,7 +186,7 @@ Tests:
     `CINODE_ACCESS_SECRET`
   - nothing in the environment, and no file: an `AuthError` that begins "No
     Cinode credentials" and contains the path
-- [ ] **Review focus 3:** one parametrized test of `read_config`. The cases:
+- [ ] **Review focus 3:** one parametrized test of `read_credentials`. The cases:
   - a file that is not valid TOML, with the secret on the broken line
   - no `access_secret`
   - `access_id = 5`
@@ -194,14 +194,14 @@ Tests:
 
   Each raises an `AuthError` whose message contains the path (and the key,
   where one is at fault) and does not contain `"s3cret-value"`.
-- [ ] One parametrized test of `config_path`, with `HOME` set by
+- [ ] One parametrized test of `credentials_path`, with `HOME` set by
   `monkeypatch` and an explicit `env` mapping (the autouse fixture has put
-  `CINODE_CONFIG` in `os.environ`). The cases:
-  - `CINODE_CONFIG="~/c.toml"` gives `$HOME/c.toml`
-  - an absolute `XDG_CONFIG_HOME` gives `$XDG_CONFIG_HOME/cinode/config.toml`
-  - a relative `XDG_CONFIG_HOME` gives `$HOME/.config/cinode/config.toml`
+  `CINODE_CREDENTIALS_FILE` in `os.environ`). The cases:
+  - `CINODE_CREDENTIALS_FILE="~/c.toml"` gives `$HOME/c.toml`
+  - an absolute `XDG_CONFIG_HOME` gives `$XDG_CONFIG_HOME/cinode/credentials.toml`
+  - a relative `XDG_CONFIG_HOME` gives `$HOME/.config/cinode/credentials.toml`
 - [ ] CLI, parametrized over the file modes `0o600` and `0o644`. The
-  `cli_api` fixture's `CINODE_BASIC` is removed, and `CINODE_CONFIG` points at
+  `cli_api` fixture's `CINODE_BASIC` is removed, and `CINODE_CREDENTIALS_FILE` points at
   a file under `tmp_path` holding `id-1.app.cinode.com` and `s3cret-value`:
   - `cinode users skills list me` succeeds, and the `/token` request carries
     `Basic base64("id-1.app.cinode.com:s3cret-value")`
@@ -213,7 +213,7 @@ Tests:
   `test_no_credentials_is_an_auth_error`, and `tests/test_config.py`'s
   existing tests pass unedited.
 - [ ] README:
-  - *Credentials* gains the config file: its location, its two keys, that
+  - *Credentials* gains the credentials file: its location, its two keys, that
     the environment wins, and `cinode config show`
   - the library quick start uses `Cinode.from_config()`
   - the CLI list gains `cinode config show`
@@ -221,7 +221,7 @@ Tests:
 
   CHANGELOG: an entry under *Unreleased*.
 - [ ] Run the four checks. Commit in two chunks: "Read credentials from a
-  config file", "Add cinode config show".
+  credentials file", "Add cinode config show".
 
 ### Task 2: `cinode init`
 
@@ -230,13 +230,13 @@ Tests:
 `tests/live/conftest.py`, `tests/live/test_acceptance.py`, `README.md`,
 `CHANGELOG.md`.
 
-**Consumes:** `config_path`, `decode_basic` and `env_options` from Task 1.
+**Consumes:** `credentials_path`, `decode_basic` and `env_options` from Task 1.
 
 **Produces:**
 - `cinode init [--access-id TEXT] [--from-env] [--force]`, registered at the
   root as `app.command("init")(config.init)`, and following the design's
   steps in order:
-  1. If `config_path()` exists and `--force` is not given, `fail()` with a
+  1. If `credentials_path()` exists and `--force` is not given, `fail()` with a
      plain `CinodeError` naming the path and `--force` (exit 1), before any
      prompt or request.
   2. Take the credentials from `--from-env`, from the terminal, or from
@@ -256,7 +256,7 @@ Tests:
   3. Verify: `with Cinode(access_id, secret, base_url=..., timeout=...) as c:
      who = c.whoami()`, with `env_options(os.environ)`. A `CinodeError` goes
      to `fail()`.
-  4. Write with a private helper `_write_config(path, access_id, access_secret)`:
+  4. Write with a private helper `_write_credentials(path, access_id, access_secret)`:
      - create the parent directory with `mkdir(mode=0o700, parents=True, exist_ok=True)`
      - build the text: the design's comment line, then each value quoted with
        `json.dumps(value, ensure_ascii=False)` (valid TOML once control
@@ -275,8 +275,8 @@ Tests:
   `env: Mapping[str, str] | None = None`, passed to `subprocess.run` as the
   whole environment.
 
-Tests (under `tests/cli/test_cli.py`, with `CINODE_CONFIG` set to
-`tmp_path / "new" / "config.toml"`, whose directory does not exist
+Tests (under `tests/cli/test_cli.py`, with `CINODE_CREDENTIALS_FILE` set to
+`tmp_path / "new" / "credentials.toml"`, whose directory does not exist
 beforehand, except where a test creates it):
 - [ ] **Review focus 4 and 6:** `cinode init --access-id id-1.app.cinode.com`
   with stdin `'s3cret-"\\:value\n'`:
@@ -286,7 +286,7 @@ beforehand, except where a test creates it):
   - `tomllib` reads the secret back unchanged
   - `/token` saw the matching Basic credential
   - the secret is in neither stream
-  - the directory holds only `config.toml`
+  - the directory holds only `credentials.toml`
 - [ ] **Review focus 5:** with `/token` returning 401, `init` exits 3 with an
   `AuthError` envelope, and `tmp_path / "new"` does not exist (or, if the
   implementation creates it before verifying, is empty).
@@ -304,11 +304,11 @@ beforehand, except where a test creates it):
 - [ ] **Review focus 7:** the GET-only transport test passes unedited.
 - [ ] Live: the `init` round trip. Skip it, with a message that names no
   data, when the environment holds neither the pair nor `CINODE_BASIC`.
-  Otherwise, with `path = tmp_path / "config.toml"`:
-  - `cinode init --from-env`, run with `os.environ` plus `CINODE_CONFIG=path`,
+  Otherwise, with `path = tmp_path / "credentials.toml"`:
+  - `cinode init --from-env`, run with `os.environ` plus `CINODE_CREDENTIALS_FILE=path`,
     exits 0, and the file's mode is `0600`
   - `cinode whoami`, run with `os.environ` minus `CINODE_ACCESS_ID`,
-    `CINODE_ACCESS_SECRET` and `CINODE_BASIC`, plus `CINODE_CONFIG=path`,
+    `CINODE_ACCESS_SECRET` and `CINODE_BASIC`, plus `CINODE_CREDENTIALS_FILE=path`,
     gives `.user_id` equal to the owner's
   - the file is deleted in a `finally` (or fixture teardown), whatever the
     outcome, since pytest keeps old `tmp_path` directories
