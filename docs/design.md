@@ -139,7 +139,7 @@ CLI (typer)        cinode users skills list me
 Library API        Cinode ── .users ── .skills / .teams / .profile / .resumes
    │                      ── .teams ── .members
    │                      ── .keywords
-   │               cinode.ops.team_skills(...)
+   │               cinode.ops.team_skills(...) / team_profiles(...)
    │
 Resources          one class per URL segment; builds paths, parses models
    │
@@ -175,7 +175,9 @@ src/cinode/
     teams.py           Teams, TeamMembers
     keywords.py        Keywords
   ops/
-    team_skills.py     team_skills(), TeamSkills
+    _members.py        the shared loop over a team's members, with skipping
+    team_skills.py     team_skills(), TeamSkills, Skipped
+    team_profiles.py   team_profiles(), TeamProfiles
   cli/
     __init__.py        typer app, entry point
     _output.py         JSON/JSONL emitting, error envelope, exit codes
@@ -212,8 +214,9 @@ c.teams.members.list(team_id)             # -> list[TeamMember]
 
 c.keywords.search(term)                   # -> list[Keyword]
 
-from cinode.ops import team_skills
+from cinode.ops import team_profiles, team_skills
 team_skills(c, team_id)                   # -> TeamSkills
+team_profiles(c, team_id)                 # -> TeamProfiles
 ```
 
 Wherever a user is expected, the argument is a `UserRef = int | Literal["me"]`,
@@ -282,10 +285,24 @@ result.members     # list[MemberSkills(user: UserSummary, skills: list[Skill])]
 result.skipped     # list[Skipped(user: UserSummary, reason: "forbidden" | "not_found")]
 ```
 
-A 403 or 404 on one member is recorded in `skipped` and never ends the run.
-Other errors do end it. `on_progress(done, total, entry)` is an optional
-callback, given the `MemberSkills` or `Skipped` entry just recorded; the
-library does no printing of its own.
+```python
+result = team_profiles(c, 9873, on_progress=None)
+result.team        # Team
+result.members     # list[MemberProfile(user: UserSummary, profile: Profile)]
+result.skipped     # list[Skipped], as for team_skills
+```
+
+Both walk the same loop, in `ops/_members.py`: the team is fetched, members
+are deduplicated by user id in first-seen order (preferring an entry with the
+user inline), and one call is made per member. A 403 or 404 on one member is
+recorded in `skipped` and never ends the run. Other errors do end it.
+`on_progress(done, total, entry)` is an optional callback, given the entry
+just recorded; the library does no printing of its own.
+
+`team_profiles` exists because every team-level question about profiles
+(who is placed where, who has worked with what) needs it. Its result is the
+lean `Profile` per member: about 1 MB for a 50-person team, against about
+25 MB raw. It makes one profile request per member, in sequence.
 
 ## Models
 
@@ -525,6 +542,7 @@ cinode teams list [--match TEXT]
 cinode teams get <team-id>
 cinode teams members list <team-id>
 cinode teams skills <team-id>          # cinode.ops.team_skills
+cinode teams profiles <team-id>        # cinode.ops.team_profiles
 cinode keywords search <term>
 cinode schema [<model>]                # JSON Schema for output models
 ```
@@ -557,8 +575,9 @@ cinode schema [<model>]                # JSON Schema for output models
 | 5 | not found |
 | 6 | rate limited |
 
-- `teams skills` exits 0 even when members were skipped. Skipped members appear
-  in the output's `skipped` array.
+- `teams skills` and `teams profiles` exit 0 even when members were skipped.
+  Skipped members appear in the output's `skipped` array. Neither takes
+  `--raw`, since their results are built, not parsed.
 - `--match` on `teams list` is a case-insensitive substring filter applied on
   the client side. It exists because the list holds 478 teams and an agent's
   context is limited; anything more complex belongs in `jq`.
@@ -620,7 +639,7 @@ What earns a unit test:
   `level: 0` → `None`, and `TeamMember`'s user id resolution; the lean
   projections of a profile and a resume, including what they leave out.
 - **Resources and ops:** `me` resolution, keyword encoding, 403/404 skipping in
-  `team_skills`.
+  `team_skills` and `team_profiles`.
 - **CLI:** the exact JSON output shape, the error envelope and the exit codes.
 
 Everything else is covered by the live acceptance suite, which exercises the
@@ -648,6 +667,7 @@ normal use:
 | `cinode users resumes list me` | every element's `.user_id` matches |
 | `cinode users resumes get me <first id>` | `.id` is that id; `.blocks` is non-empty (skipped if the owner has no resumes) |
 | `cinode teams skills 9873` | *slow*: every member is in `members` or `skipped`; the owner is in `members` |
+| `cinode teams profiles 9873` | *slow*: the same, with the owner's `.profile.user_id` matching |
 
 The ids default to the author's (user 158773, team 9873, keyword 22070 "Python"
 with synonym 2930) and can be overridden with `CINODE_TEST_USER_ID`,

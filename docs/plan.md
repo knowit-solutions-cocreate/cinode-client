@@ -10,7 +10,8 @@ lean, typed projections of Cinode's very large payloads.
 
 **Architecture:** no new layers. Two model modules join `cinode.models`
 (`profiles.py`, `resumes.py`), two sub-resources join `Users` (`UserProfile`,
-`UserResumes`), and the CLI's `users` group gains `profile` and `resumes`.
+`UserResumes`), `cinode.ops` gains `team_profiles`, and the CLI gains
+`users profile`, `users resumes` and `teams profiles`.
 Everything follows the v0.1 patterns: `CinodeModel` with `.raw`,
 `Resource._one` and `._list`, `require_id`, `run()` in the CLI.
 
@@ -28,7 +29,8 @@ Read them before starting; this plan does not repeat them.
   listed.
 - **Nothing changes that v0.1 shipped.** Existing names, signatures and output
   shapes stay. The work adds attributes to `Users`, exports to
-  `cinode.models`, commands to `cinode users`, and names to `cinode schema`.
+  `cinode.models` and `cinode.ops`, commands to `cinode users` and
+  `cinode teams`, and names to `cinode schema`.
 - **Fixtures are small.** A synthetic profile or resume payload has one or two
   elements per section and a few of the keys v0.2 leaves out, enough to show
   that they are dropped. Never copy a live payload, even anonymised.
@@ -63,6 +65,9 @@ in the task named.
    `resumes/{id}/dynamic`, which returns 404. *(Task 3)*
 6. **A bad resume id is refused before any request.** `True`, `0` and `"5"`
    raise `ValueError`, as for every other id. *(Task 3)*
+7. **`team_skills` does not change** when its loop moves to `ops/_members.py`.
+   Its existing tests in `tests/test_ops.py` and `tests/cli/test_cli.py` pass
+   unedited. *(Task 4)*
 
 ## File map
 
@@ -70,11 +75,12 @@ in the task named.
 src/cinode/
   models/     profiles.py (new)  resumes.py (new)  skills.py  __init__.py
   resources/  users.py
-  cli/        users.py  schema.py  _output.py (ResumeIdArg)
+  ops/        _members.py (new)  team_profiles.py (new)  team_skills.py  __init__.py
+  cli/        users.py  teams.py  schema.py  _output.py (ResumeIdArg)
 tests/
   support.py            profile_payload, resume_summary_payload, resume_payload
-  test_models.py  test_resources.py
-  live/test_acceptance.py
+  test_models.py  test_resources.py  test_ops.py
+  cli/test_cli.py  live/test_acceptance.py
 README.md  CHANGELOG.md
 ```
 
@@ -209,10 +215,55 @@ Tests:
     profiles and resumes
 
   CHANGELOG: an entry under *Unreleased*.
+- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m "live
+  and not slow"`. Commit in two chunks: "Add users.profile and users.resumes",
+  "Add the profile and resume commands".
+
+### Task 4: `ops.team_profiles`
+
+**Files:** `src/cinode/ops/_members.py`, `ops/team_profiles.py`,
+`ops/team_skills.py`, `ops/__init__.py`, `src/cinode/cli/teams.py`,
+`src/cinode/cli/schema.py`, `tests/test_ops.py`,
+`tests/live/test_acceptance.py`, `README.md`, `CHANGELOG.md`.
+
+**Consumes:** `users.profile.get` (Task 3), and `Skipped` and the loop in
+`team_skills` (v0.1 Task 9).
+
+**Produces:**
+- `ops/_members.py`: the loop that `team_skills` runs today, made generic over
+  what is fetched per member. It fetches the team, deduplicates the members
+  (first-seen order, preferring an entry with the user inline, `UserSummary(id=…)`
+  when there is none), calls `fetch(user_id)` per member, records 403 and 404
+  as `Skipped`, and calls `on_progress`. `team_skills` is rewritten on top of
+  it, with its behaviour and public names unchanged.
+- `team_profiles(client: Cinode, team_id: int, *, on_progress: Callable[[int, int, MemberProfile | Skipped], None] | None = None) -> TeamProfiles`.
+- Result models:
+  - `MemberProfile(user: UserSummary, profile: Profile)`
+  - `TeamProfiles(team: Team, members: list[MemberProfile], skipped: list[Skipped])`,
+    reusing `Skipped` from `team_skills`.
+- `ops/__init__` also exports `team_profiles`, `TeamProfiles` and
+  `MemberProfile`.
+- `cinode teams profiles <team-id>`, with `--jsonl` and no `--raw`, and progress
+  on stderr only when it is a TTY, exactly like `teams skills`. It exits 0 even
+  when members are skipped.
+- `cinode schema` gains `team-profiles`.
+
+Tests:
+- [ ] With members 1, 2 and 3, where 2's profile returns 403 and 3's returns
+  404: 1 is in `members` with its `Profile`, and `skipped` is
+  `[(2, "forbidden"), (3, "not_found")]`. Parametrize the existing
+  `team_skills` test over both operations if that keeps it readable;
+  otherwise add one test beside it.
+- [ ] **Review focus 7:** the existing `team_skills` tests pass unedited.
+- [ ] Live, `@slow`: `teams profiles <team>`. The unique set of member and
+  skipped ids equals the unique ids from `teams members list`, and the
+  owner's entry in `members` has `.profile.user_id` equal to the owner.
+- [ ] README: the quick start and the CLI list gain `team_profiles`.
+  CHANGELOG: the *Unreleased* entry covers it.
 - [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
-  (the slow test included, since this is the last task). Commit in two chunks:
-  "Add users.profile and users.resumes", "Add the profile and resume
-  commands".
+  (the slow tests included, since this is the last task). Commit in two
+  chunks: "Share the team member loop between operations", "Add the
+  team_profiles operation and command".
 
 ---
 
