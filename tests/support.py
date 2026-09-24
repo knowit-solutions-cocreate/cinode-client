@@ -221,3 +221,68 @@ def profile_payload(**overrides: object) -> dict[str, object]:
         "commitments": [{"id": 9501, "title": "A paper"}],
     }
     return payload | overrides
+
+
+def resume_summary_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic resume summary shaped like Cinode's `CompanyUserResumeBaseModel`."""
+    payload: dict[str, object] = {
+        "id": 7,
+        "companyId": COMPANY_ID,
+        "companyUserId": USER_ID,
+        "title": "Ada Example CV",
+        "description": None,
+        "language": {"languageId": 1, "culture": "sv-SE"},
+        "template": {"id": 31, "title": "Standard"},
+        "created": {"time": "2026-01-02T03:04:05.1234567", "companyUserId": USER_ID},
+        "updated": {"time": "2026-02-03T04:05:06", "companyUserId": USER_ID},
+        "isPublic": None,
+        "profileTranslationId": 501,
+        "viewUrl": "https://app.test/resumes/7",
+        "publicViewUrl": None,
+        "links": [],
+    }
+    return payload | overrides
+
+
+def resume_payload(**overrides: object) -> dict[str, object]:
+    """A synthetic resume with its content, shaped like Cinode's, much reduced."""
+    presentation = {
+        "blockId": "b-2",
+        "blockType": 9,
+        "friendlyBlockName": "Presentation",
+        "heading": "Om mig",
+        "order": 1,
+        "title": "Utvecklare",
+        "description": "Skriver kod.",
+        "personalDescription": "",
+    }
+    payload: dict[str, object] = resume_summary_payload() | {
+        "resume": {
+            "pdfMarginTop": 20,
+            "cssVariables": {"--accent": "#123456"},
+            "presentation": presentation,
+            "blocks": [
+                {
+                    "blockId": "b-1",
+                    "blockType": 3,
+                    "friendlyBlockName": "WorkExperiences",
+                    "heading": "Uppdrag",
+                    "order": 0,
+                    "data": [
+                        {"id": "7001", "employer": "Exempel AB", "startDate": "2024-01-01"},
+                        {"id": "7002", "employer": "Exempel AB", "isCurrent": True},
+                    ],
+                },
+                presentation,
+                {
+                    "blockId": "b-3",
+                    "blockType": 99,
+                    "friendlyBlockName": None,
+                    "heading": None,
+                    "order": 2,
+                    "data": None,
+                },
+            ],
+        },
+    }
+    return payload | overrides

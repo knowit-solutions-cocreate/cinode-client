@@ -17,6 +17,7 @@ from cinode.models.profiles import (
     WorkExperience,
     WorkExperienceText,
 )
+from cinode.models.resumes import Resume, ResumeBlock, ResumeSummary
 from cinode.models.skills import Keyword, Skill
 from cinode.models.teams import Team, TeamMember
 from cinode.models.users import User, UserSummary
@@ -32,6 +33,9 @@ __all__ = [
     "PresentationText",
     "Profile",
     "ProfileLanguage",
+    "Resume",
+    "ResumeBlock",
+    "ResumeSummary",
     "Skill",
     "SkillRef",
     "Team",
