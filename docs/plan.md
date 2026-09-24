@@ -226,34 +226,42 @@ Tests:
 `src/cinode/cli/schema.py`, `tests/test_ops.py`,
 `tests/live/test_acceptance.py`, `README.md`, `CHANGELOG.md`.
 
-**Consumes:** `users.profile.get` (Task 3), and `Skipped` and the loop in
-`team_skills` (v0.1 Task 9).
+**Consumes:** `users.profile.get` (Task 3). The loop and `Skipped` move out
+of `team_skills.py` in this task; nothing new imports from `team_skills.py`.
 
 **Produces:**
-- `ops/_members.py`: the loop that `team_skills` runs today, made generic over
-  what is fetched per member. It fetches the team, deduplicates the members
-  (first-seen order, preferring an entry with the user inline, `UserSummary(id=…)`
-  when there is none), calls `fetch(user_id)` per member, records 403 and 404
-  as `Skipped`, and calls `on_progress`. `team_skills` is rewritten on top of
-  it, with its behaviour and public names unchanged.
+- `ops/_members.py`:
+  - `Skipped`, moved from `team_skills.py`, with a docstring that no longer
+    names skills. `team_skills.py` and `ops/__init__` re-export it, so
+    `from cinode.ops import Skipped` and `from cinode.ops.team_skills import
+    Skipped` keep working.
+  - `walk_members[E](client: Cinode, team_id: int, entry: Callable[[UserSummary], E], on_progress: Callable[[int, int, E | Skipped], None] | None) -> tuple[Team, list[E], list[Skipped]]`:
+    the loop that `team_skills` runs today. It fetches the team, deduplicates
+    the members (first-seen order, preferring an entry with the user inline,
+    `UserSummary(id=…)` when there is none), calls `entry(user)` per member,
+    records a 403 or 404 as `Skipped`, and calls `on_progress`.
+  - `team_skills` becomes `walk_members(..., lambda u: MemberSkills(user=u, skills=client.users.skills.list(u.id)), ...)`,
+    with its behaviour and public names unchanged. (This signature was
+    checked under strict pyright.)
 - `team_profiles(client: Cinode, team_id: int, *, on_progress: Callable[[int, int, MemberProfile | Skipped], None] | None = None) -> TeamProfiles`.
 - Result models:
   - `MemberProfile(user: UserSummary, profile: Profile)`
   - `TeamProfiles(team: Team, members: list[MemberProfile], skipped: list[Skipped])`,
-    reusing `Skipped` from `team_skills`.
+    with `Skipped` from `_members.py`.
 - `ops/__init__` also exports `team_profiles`, `TeamProfiles` and
   `MemberProfile`.
 - `cinode teams profiles <team-id>`, with `--jsonl` and no `--raw`, and progress
   on stderr only when it is a TTY, exactly like `teams skills`. It exits 0 even
-  when members are skipped.
+  when members are skipped. The existing `_progress` in `cli/teams.py` is
+  widened to `MemberSkills | MemberProfile | Skipped` and shared by both
+  commands.
 - `cinode schema` gains `team-profiles`.
 
 Tests:
 - [ ] With members 1, 2 and 3, where 2's profile returns 403 and 3's returns
   404: 1 is in `members` with its `Profile`, and `skipped` is
-  `[(2, "forbidden"), (3, "not_found")]`. Parametrize the existing
-  `team_skills` test over both operations if that keeps it readable;
-  otherwise add one test beside it.
+  `[(2, "forbidden"), (3, "not_found")]`. One new test, beside the existing
+  `team_skills` test, which stays as it is.
 - [ ] **Review focus 7:** the existing `team_skills` tests pass unedited.
 - [ ] Live, `@slow`: `teams profiles <team>`. The unique set of member and
   skipped ids equals the unique ids from `teams members list`, and the

@@ -175,8 +175,8 @@ src/cinode/
     teams.py           Teams, TeamMembers
     keywords.py        Keywords
   ops/
-    _members.py        the shared loop over a team's members, with skipping
-    team_skills.py     team_skills(), TeamSkills, Skipped
+    _members.py        walk_members(), the shared loop over a team's members; Skipped
+    team_skills.py     team_skills(), TeamSkills
     team_profiles.py   team_profiles(), TeamProfiles
   cli/
     __init__.py        typer app, entry point
