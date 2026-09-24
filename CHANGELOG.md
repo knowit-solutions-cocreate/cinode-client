@@ -13,6 +13,9 @@ semantic versioning; while the version is 0.x, minor versions may break.
   when the environment holds no credentials. The environment wins as a whole.
 - `Cinode(access_id, access_secret)` now honours `CINODE_BASE_URL` and
   `CINODE_TIMEOUT` when `base_url` and `timeout` are not passed.
+- **`cinode config show`** reports where the credentials in use come from,
+  the AccessId, and the credentials file's path, existence and permissions,
+  without a network call. `cinode schema` gains `config`.
 
 ## 0.2.0 — 2026-09-24
 

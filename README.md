@@ -66,6 +66,10 @@ access_secret = "..."
   (`chmod 600`). Loading a file others can read is not an error.
 - A file that cannot be read, is not TOML, or lacks either key as a
   non-empty string is an auth error that names the file and the key.
+- `cinode config show` says where the credentials in use come from (`env` or
+  `file`), with the AccessId, the file's path, and whether the file exists and
+  is private. It makes no request, and never shows the secret; `cinode whoami`
+  is the online check.
 
 Secrets are never logged and never shown in `repr`.
 
@@ -130,11 +134,13 @@ cinode teams skills <team-id>
 cinode teams profiles <team-id>
 cinode keywords search <term>
 cinode schema [<model>]
+cinode config show
 ```
 
 `<user>` is a numeric id or `me`. `--jsonl` writes a list as one object per
-line (every command but `schema`), and `--raw` writes Cinode's payload
-untouched (every command but `teams skills`, `teams profiles` and `schema`).
+line (every command but `schema` and `config show`), and `--raw` writes
+Cinode's payload untouched (every command but `teams skills`, `teams
+profiles`, `schema` and `config show`).
 `cinode schema` lists the output models, and `cinode schema skill` prints one
 model's JSON Schema.
 
