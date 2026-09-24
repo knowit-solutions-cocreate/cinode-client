@@ -6,7 +6,8 @@ meant for agents first and humans second.
 It is **read-only by construction**: the transport can only issue GET, so there
 is no write path to enable by mistake. Version 0.1 covers skills, plus the
 users, teams and keywords needed to reach them. Version 0.2 adds user
-profiles (the data behind a CV) and resumes. See
+profiles (the data behind a CV) and resumes. Version 0.3 reads credentials
+from a credentials file when the environment has none. See
 [`docs/design.md`](docs/design.md) for the design,
 [`docs/roadmap.md`](docs/roadmap.md) for what comes next, and
 [`docs/plans/`](docs/plans/) for the plans of released versions.
@@ -47,6 +48,29 @@ export CINODE_BASIC=$(printf '%s:%s' "$CINODE_ACCESS_ID" "$CINODE_ACCESS_SECRET"
 - `CINODE_TIMEOUT` sets the request timeout in seconds (default 30).
 - The company id and user id are never configured; they come from the token.
 
+### The credentials file
+
+When the environment holds no credentials, the CLI and `Cinode()` read them
+from a credentials file, at `$CINODE_CREDENTIALS_FILE` if set, else
+`$XDG_CONFIG_HOME/cinode/credentials.toml` (when `XDG_CONFIG_HOME` is an
+absolute path), else `~/.config/cinode/credentials.toml`, on macOS too:
+
+```toml
+access_id = "0123abcd.app.cinode.com"
+access_secret = "..."
+```
+
+- The environment wins as a whole: if it holds any credentials (the pair,
+  half a pair, or `CINODE_BASIC`), the file is not opened.
+- The secret is stored in plain text, so keep the file private
+  (`chmod 600`). Loading a file others can read is not an error.
+- A file that cannot be read, is not TOML, or lacks either key as a
+  non-empty string is an auth error that names the file and the key.
+- `cinode config show` says where the credentials in use come from (`env` or
+  `file`), with the AccessId, the file's path, and whether the file exists and
+  is private. It makes no request, and never shows the secret; `cinode whoami`
+  is the online check.
+
 Secrets are never logged and never shown in `repr`.
 
 ## Library
@@ -55,7 +79,7 @@ Secrets are never logged and never shown in `repr`.
 from cinode import Cinode, ForbiddenError
 from cinode.ops import team_profiles, team_skills
 
-with Cinode.from_env() as c:              # or Cinode(access_id=..., access_secret=...)
+with Cinode() as c:                       # or Cinode(access_id=..., access_secret=...)
     me = c.users.get("me")                # User
     skills = c.users.skills.list("me")    # list[Skill]
     rated = [s for s in skills if s.is_rated]
@@ -110,11 +134,13 @@ cinode teams skills <team-id>
 cinode teams profiles <team-id>
 cinode keywords search <term>
 cinode schema [<model>]
+cinode config show
 ```
 
 `<user>` is a numeric id or `me`. `--jsonl` writes a list as one object per
-line (every command but `schema`), and `--raw` writes Cinode's payload
-untouched (every command but `teams skills`, `teams profiles` and `schema`).
+line (every command but `schema` and `config show`), and `--raw` writes
+Cinode's payload untouched (every command but `teams skills`, `teams
+profiles`, `schema` and `config show`).
 `cinode schema` lists the output models, and `cinode schema skill` prints one
 model's JSON Schema.
 

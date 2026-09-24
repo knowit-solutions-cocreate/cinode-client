@@ -1,5 +1,7 @@
+import base64
 import json
 from collections.abc import Callable
+from pathlib import Path
 
 import httpx
 import pytest
@@ -130,3 +132,37 @@ def test_teams_skills_exits_0_and_lists_a_forbidden_member(
     output = json.loads(result.stdout)
     assert [m["user"]["id"] for m in output["members"]] == [1]
     assert [(s["user"]["id"], s["reason"]) for s in output["skipped"]] == [(2, "forbidden")]
+
+
+@pytest.mark.parametrize(("mode", "private"), [(0o600, True), (0o644, False)])
+def test_credentials_come_from_the_file_and_config_show_reports_it(
+    cli: Cli,
+    cli_api: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    mode: int,
+    private: bool,
+) -> None:
+    path = tmp_path / "credentials.toml"
+    path.write_text('access_id = "id-1.app.cinode.com"\naccess_secret = "s3cret-value"\n')
+    path.chmod(mode)
+    monkeypatch.delenv("CINODE_BASIC")
+    monkeypatch.setenv("CINODE_CREDENTIALS_FILE", str(path))
+
+    cli_api.get(SKILLS).mock(return_value=httpx.Response(200, json=[skill_payload()]))
+    result = cli("users", "skills", "list", "me")
+    assert result.exit_code == 0
+    basic = base64.b64encode(b"id-1.app.cinode.com:s3cret-value").decode()
+    assert cli_api["token"].calls.last.request.headers["Authorization"] == f"Basic {basic}"
+
+    result = cli("config", "show")
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == {
+        "source": "file",
+        "access_id": "id-1.app.cinode.com",
+        "path": str(path),
+        "file_exists": True,
+        "file_mode": f"{mode:04o}",
+        "file_private": private,
+    }
+    assert "s3cret-value" not in result.stdout + result.stderr

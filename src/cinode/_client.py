@@ -1,10 +1,11 @@
 """`Cinode`: construction, identity and resource wiring."""
 
 from collections.abc import Mapping
+from pathlib import Path
 from types import TracebackType
 from typing import Self
 
-from cinode._config import DEFAULT_BASE_URL, DEFAULT_TIMEOUT, Settings
+from cinode._config import Settings
 from cinode._transport import Transport
 from cinode.models import WhoAmI
 from cinode.resources._base import Context
@@ -24,21 +25,29 @@ class Cinode:
 
     def __init__(
         self,
-        access_id: str,
-        access_secret: str,
+        access_id: str | None = None,
+        access_secret: str | None = None,
         *,
-        base_url: str = DEFAULT_BASE_URL,
-        timeout: float = DEFAULT_TIMEOUT,
+        base_url: str | None = None,
+        timeout: float | None = None,
+        env: Mapping[str, str] | None = None,
+        credentials_file: Path | None = None,
     ) -> None:
-        settings = Settings.from_credentials(
-            access_id, access_secret, base_url=base_url, timeout=timeout
+        """A client with credentials from the arguments, else the environment, else the file.
+
+        Pass both `access_id` and `access_secret`, or neither. `env` stands in
+        for `os.environ`, and `credentials_file` for the file's default location.
+        Raises `AuthError` when no credentials are found.
+        """
+        settings = Settings.resolve(
+            access_id,
+            access_secret,
+            base_url=base_url,
+            timeout=timeout,
+            env=env,
+            credentials_file=credentials_file,
         )
         self._wire(Transport(settings))
-
-    @classmethod
-    def from_env(cls, env: Mapping[str, str] | None = None) -> Self:
-        """A client configured from `env`, or from `os.environ` when it is None."""
-        return cls._with_transport(Transport(Settings.from_env(env)))
 
     @classmethod
     def _with_transport(cls, transport: Transport) -> Self:

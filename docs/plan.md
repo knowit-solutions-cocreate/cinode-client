@@ -185,7 +185,7 @@ README.md  CHANGELOG.md
   that file changes.
 
 Tests:
-- [ ] **Review focus 1:** one parametrized test of `Settings.resolve` in
+- [x] **Review focus 1:** one parametrized test of `Settings.resolve` in
   `tests/test_config.py`, using an `env` mapping and a file under
   `tmp_path`. The cases:
   - both arguments, the pair in the environment, and a valid file:
@@ -203,7 +203,7 @@ Tests:
     `CINODE_ACCESS_SECRET`
   - nothing in the environment, and no file: an `AuthError` that begins "No
     Cinode credentials" and contains the path
-- [ ] **Review focus 3:** one parametrized test of `read_credentials`. The cases:
+- [x] **Review focus 3:** one parametrized test of `read_credentials`. The cases:
   - a file that is not valid TOML, with the secret on the broken line
   - no `access_secret`
   - `access_id = 5`
@@ -211,13 +211,13 @@ Tests:
 
   Each raises an `AuthError` whose message contains the path (and the key,
   where one is at fault) and does not contain `"s3cret-value"`.
-- [ ] One parametrized test of `credentials_path`, with `HOME` set by
+- [x] One parametrized test of `credentials_path`, with `HOME` set by
   `monkeypatch` and an explicit `env` mapping (the autouse fixture has put
   `CINODE_CREDENTIALS_FILE` in `os.environ`). The cases:
   - `CINODE_CREDENTIALS_FILE="~/c.toml"` gives `$HOME/c.toml`
   - an absolute `XDG_CONFIG_HOME` gives `$XDG_CONFIG_HOME/cinode/credentials.toml`
   - a relative `XDG_CONFIG_HOME` gives `$HOME/.config/cinode/credentials.toml`
-- [ ] CLI, parametrized over the file modes `0o600` and `0o644`. The
+- [x] CLI, parametrized over the file modes `0o600` and `0o644`. The
   `cli_api` fixture's `CINODE_BASIC` is removed, and `CINODE_CREDENTIALS_FILE` points at
   a file under `tmp_path` holding `id-1.app.cinode.com` and `s3cret-value`:
   - `cinode users skills list me` succeeds, and the `/token` request carries
@@ -226,10 +226,10 @@ Tests:
     "id-1.app.cinode.com", "path": <path>, "file_exists": true, "file_mode":
     "0600" | "0644", "file_private": true | false}`, and `"s3cret-value"` is
     in neither stream
-- [ ] **Review focus 2:** the existing CLI tests, including
+- [x] **Review focus 2:** the existing CLI tests, including
   `test_no_credentials_is_an_auth_error`, and `tests/test_config.py`'s
   existing tests pass unedited.
-- [ ] README:
+- [x] README:
   - *Credentials* gains the credentials file: its location, its two keys, that
     the environment wins, and `cinode config show`
   - the library quick start uses `Cinode()`, and no longer mentions
@@ -239,7 +239,7 @@ Tests:
 
   CHANGELOG: an entry under *Unreleased*, with a *Breaking* line for the
   removal of `Cinode.from_env()` (use `Cinode()`).
-- [ ] Run the four checks. Commit in two chunks: "Read credentials from a
+- [x] Run the four checks. Commit in two chunks: "Read credentials from a
   credentials file", "Add cinode config show".
 
 ### Task 2: `cinode init`
