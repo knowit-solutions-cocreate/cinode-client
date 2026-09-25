@@ -193,21 +193,31 @@ def test_teams_skills_exits_0_and_lists_a_forbidden_member(
     assert [(s["user"]["id"], s["reason"]) for s in output["skipped"]] == [(2, "forbidden")]
 
 
-@pytest.mark.parametrize("empty", [False, True], ids=["two-skills", "empty"])
+@pytest.mark.parametrize(
+    ("name", "printed"),
+    [
+        ("[/x] :smile:", "[/x] :smile:"),
+        ("\x1b[31mred\x1b]0;title\x07", "\ufffd[31mred\ufffd]0;title\ufffd"),
+        (None, None),
+    ],
+    ids=["markup", "escape", "empty"],
+)
 @pytest.mark.usefixtures("wide")
-def test_skills_list_as_a_table(cli: Cli, cli_api: respx.MockRouter, empty: bool) -> None:
-    markup = "[/x] :smile:"
+def test_skills_list_as_a_table(
+    cli: Cli, cli_api: respx.MockRouter, name: str | None, printed: str | None
+) -> None:
     payloads = [
         skill_payload(level=0),
-        skill_payload(id=22071, keyword=keyword_payload(id=22071, masterSynonym=markup)),
+        skill_payload(id=22071, keyword=keyword_payload(id=22071, masterSynonym=name)),
     ]
-    cli_api.get(SKILLS).mock(return_value=httpx.Response(200, json=[] if empty else payloads))
+    cli_api.get(SKILLS).mock(return_value=httpx.Response(200, json=payloads if name else []))
     result = cli("users", "skills", "list", "me", "--format", "table")
     assert result.exit_code == 0
     assert all(label in result.stdout for label in SKILL_LABELS)
-    if not empty:
+    assert "\x1b" not in result.stdout
+    if printed is not None:
         assert "Python" in result.stdout
-        assert markup in result.stdout
+        assert printed in result.stdout
         assert not is_json(result.stdout)
 
 

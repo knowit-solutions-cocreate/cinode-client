@@ -3,6 +3,7 @@
 A table's layout is not part of the output contract; its column paths are.
 """
 
+import re
 import types
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -139,6 +140,18 @@ def member_skill_rows(result: TeamSkills) -> list[MemberSkillRow]:
     return rows
 
 
+_CONTROL = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")
+
+
+def _printable(text: str) -> str:
+    """`text` with every C0 and C1 control character but `\\n` replaced by U+FFFD.
+
+    Cinode's text must not reach the terminal as an escape sequence. A newline
+    is kept: `rich` breaks the line there, as it does when a cell folds.
+    """
+    return _CONTROL.sub("\ufffd", text)
+
+
 def _cell(data: Any, path: str) -> str:
     value = data
     for part in path.split("."):
@@ -149,21 +162,21 @@ def _cell(data: Any, path: str) -> str:
         return ""
     if isinstance(value, bool):
         return "true" if value else "false"
-    return str(value)
+    return _printable(str(value))
 
 
 def cells(item: CinodeModel, columns: Sequence[Column]) -> list[str]:
     """One string per column: the value at its path in `item.model_dump(mode="json")`.
 
     `null`, or a `null` model on the way, is an empty cell; a boolean is `true`
-    or `false`; anything else is its string.
+    or `false`; anything else is its string, with control characters replaced.
     """
     data = item.model_dump(mode="json")
     return [_cell(data, column.path) for column in columns]
 
 
 def _heading(text: str | None) -> Text | None:
-    return None if text is None else Text(text, no_wrap=True, overflow="ignore")
+    return None if text is None else Text(_printable(text), no_wrap=True, overflow="ignore")
 
 
 def render(
@@ -179,7 +192,8 @@ def render(
     A list is one row per element, with `DEFAULT_COLUMNS[model]` unless
     `columns` is given. A single object is a *Field* and *Value* table, one row
     per path. Cinode's text is printed as it is: markup, emoji codes and
-    highlighting are off. The title and caption are never cropped.
+    highlighting are off, and control characters are replaced. The title and
+    caption are never cropped.
     """
     table = Table(title=_heading(title), caption=_heading(caption))
     if isinstance(result, CinodeModel):
