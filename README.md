@@ -163,10 +163,8 @@ cinode init [--access-id ID] [--from-env] [--force]
 cinode config show
 ```
 
-`<user>` is a numeric id or `me`. `--jsonl` writes a list as one object per
-line (every command but `schema`, `init` and `config show`), and `--raw` writes
-Cinode's payload untouched (every command but `teams skills`, `teams
-profiles`, `schema`, `init` and `config show`).
+`<user>` is a numeric id or `me`. Every command but `schema` takes
+`--format` (see *Output contract*).
 `cinode schema` lists the output models, and `cinode schema skill` prints one
 model's JSON Schema.
 
@@ -177,9 +175,19 @@ cinode teams list --match cocreate | jq '.[].id'
 
 ### Output contract
 
-- **stdout is data only:** one JSON document (an array for `list` and `search`,
-  an object for `get`), or JSON Lines with `--jsonl`. The shape is what
-  `cinode schema` describes.
+- **stdout is data only.** `--format` picks what is written:
+
+  | Format | Output |
+  |---|---|
+  | `json` (default) | one JSON document: an array for `list` and `search`, an object for `get` |
+  | `jsonl` | one JSON object per line; for a single object, the same as `json` |
+  | `raw` | Cinode's payload untouched, as one JSON document |
+
+  The JSON shape is what `cinode schema` describes. Not every command takes
+  every format: `raw` is refused by `teams skills`, `teams profiles`, `init`
+  and `config show`, whose results are built rather than read from Cinode,
+  and `jsonl` by `init` and `config show`. A command's `--help` lists the
+  formats it takes, and any other is a usage error.
 - **stderr carries errors and progress.** A failure writes one JSON object:
 
   ```json
