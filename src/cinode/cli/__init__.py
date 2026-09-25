@@ -8,7 +8,14 @@ from typer._click.exceptions import NoArgsIsHelpError, UsageError
 from typer.core import TyperGroup
 
 from cinode.cli import config, keywords, schema, teams, users
-from cinode.cli._output import Format, FormatOption, run, usage_failure
+from cinode.cli._output import (
+    ColumnsOption,
+    Format,
+    FormatOption,
+    run,
+    table_columns,
+    usage_failure,
+)
 from cinode.models import WhoAmI
 
 
@@ -57,9 +64,10 @@ app.command("init")(config.init)
 
 
 @app.command()
-def whoami(format: FormatOption = Format.json) -> None:
+def whoami(format: FormatOption = Format.json, columns: ColumnsOption = None) -> None:
     """The account owner's company and user ids."""
-    run(lambda c: c.whoami(), format=format, model=WhoAmI)
+    shown = table_columns(format, columns, WhoAmI)
+    run(lambda c: c.whoami(), format=format, model=WhoAmI, columns=shown)
 
 
 def main() -> None:

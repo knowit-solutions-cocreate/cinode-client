@@ -307,6 +307,43 @@ def test_teams_skills_as_a_table(cli: Cli, cli_api: respx.MockRouter, all_skippe
         assert all(name in result.stdout for name in ("Python", "Rust", "Bo Sample"))
 
 
+@pytest.mark.usefixtures("wide")
+def test_columns_picks_and_labels_the_columns(cli: Cli, cli_api: respx.MockRouter) -> None:
+    cli_api.get(f"/v0.1/companies/99/teams/{TEAM_ID}/members").mock(
+        return_value=httpx.Response(200, json=[member_payload()])
+    )
+    columns = "user_id,user.full_name,team_id"
+    result = cli(
+        "teams", "members", "list", str(TEAM_ID), "--format", "table", "--columns", columns
+    )
+    assert result.exit_code == 0
+    assert all(label in result.stdout for label in ("User id", "Name", "Team id"))
+    assert "Availability %" not in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        (["--columns", "name"], "--format table"),
+        (["--format", "table", "--columns", "bogus"], "keyword_id"),
+        (["--format", "table", "--columns", ""], None),
+        (["--format", "table", "--columns", "name,"], None),
+    ],
+    ids=["without-table", "unknown-path", "empty", "empty-item"],
+)
+def test_bad_columns_are_a_usage_error_before_any_request(
+    cli: Cli, cli_api: respx.MockRouter, args: list[str], message: str | None
+) -> None:
+    result = cli("users", "skills", "list", "me", *args)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    error = json.loads(result.stderr)["error"]
+    assert error["type"] == "UsageError"
+    if message is not None:
+        assert message in error["message"]
+    assert not cli_api.calls
+
+
 @pytest.mark.parametrize(("mode", "private"), [(0o600, True), (0o644, False)])
 def test_credentials_come_from_the_file_and_config_show_reports_it(
     cli: Cli,

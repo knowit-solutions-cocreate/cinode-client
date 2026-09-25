@@ -281,10 +281,10 @@ Tests (with `COLUMNS=200`):
   covers `--columns`.
 
 Tests (with `COLUMNS=200`):
-- [ ] One CLI test of `teams members list 9873 --format table --columns
+- [x] One CLI test of `teams members list 9873 --format table --columns
   user_id,user.full_name,team_id`: exit 0, and stdout holds the labels
   "User id", "Name" and "Team id" and not "Availability %".
-- [ ] **Review focus 10:** one parametrized CLI test of usage errors on
+- [x] **Review focus 10:** one parametrized CLI test of usage errors on
   `users skills list me`, each exiting 2 with a `UsageError` envelope and
   no request:
   - `--columns name` without `--format table`: the message names
@@ -292,7 +292,7 @@ Tests (with `COLUMNS=200`):
   - `--format table --columns bogus`: the message lists `keyword_id`
   - `--format table --columns ""`
   - `--format table --columns name,`
-- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
+- [x] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
   (the slow tests included, since this is the last task). Commit in one
   chunk: "Add --columns".
 
@@ -300,7 +300,7 @@ Tests (with `COLUMNS=200`):
 
 ## Done when
 
-- [ ] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are
+- [x] `uv run pytest`, `ruff check`, `ruff format --check` and `pyright` are
       clean, and the default test run takes under two seconds.
-- [ ] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
+- [x] `CINODE_LIVE_TESTS=1 uv run pytest -m live` passes against the owner's
       profile.

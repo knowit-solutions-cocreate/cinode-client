@@ -243,6 +243,19 @@ team's name as its title. A member with no skills has one row with empty
 skill cells, and a caption counts the members skipped, by reason:
 "6 members skipped: forbidden 6".
 
+`--columns PATH[,PATH…]` picks the columns, in order, or for a single
+object the rows. A path is field names joined by dots, through nested
+objects but not into lists:
+
+```
+$ cinode teams members list 9873 --format table --columns user.full_name,team_id
+```
+
+A default column keeps its label, and any other path is humanised
+(`team_id` becomes "Team id"). `--columns` needs `--format table`, and
+a path the command does not have is a usage error that lists the valid
+ones, so `--columns ?` is a way to see them.
+
 Tables are for humans. Their layout may change in any version, so agents
 and scripts use JSON. Errors stay JSON on stderr under `--format table`.
 

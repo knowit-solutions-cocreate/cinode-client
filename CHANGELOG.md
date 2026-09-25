@@ -19,6 +19,10 @@ semantic versioning; while the version is 0.x, minor versions may break.
   member and skill, titled with the team's name, and its caption counts the
   skipped members by reason. A table's layout is not part of the output contract;
   agents keep to JSON. `rich` is now a declared dependency.
+- **`--columns PATH[,PATH…]`** picks a table's columns, or a single
+  object's rows, by path (`user.full_name`), in the order given. It needs
+  `--format table`, and an unknown path is a usage error that lists the
+  valid ones. It is checked before any request.
 
 ## 0.3.0 — 2026-09-24
 

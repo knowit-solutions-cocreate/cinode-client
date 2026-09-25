@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Union, cast, get_args, get_origin
 
+import typer
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -125,6 +126,32 @@ DEFAULT_COLUMNS: dict[type[CinodeModel], tuple[Column, ...]] = {
         ("skill.years_experience", "Years"),
     ),
 }
+
+
+def parse_columns(value: str, model: type[CinodeModel]) -> tuple[Column, ...]:
+    """The columns `--columns` names, in its order, each with its header.
+
+    A path keeps its label from `DEFAULT_COLUMNS[model]` if it is one of the
+    defaults, and is otherwise humanised. Raises `typer.BadParameter` (exit 2)
+    for an empty value, an empty item, or a path `model` does not have; the
+    last lists the valid paths.
+    """
+    paths = [item.strip() for item in value.split(",")]
+    if not any(paths):
+        raise typer.BadParameter("must name at least one column path.", param_hint="'--columns'")
+    if not all(paths):
+        raise typer.BadParameter(f"has an empty item: {value!r}.", param_hint="'--columns'")
+    valid = column_paths(model)
+    unknown = [path for path in paths if path not in valid]
+    if unknown:
+        noun = "path" if len(unknown) == 1 else "paths"
+        raise typer.BadParameter(
+            f"unknown column {noun} {', '.join(map(repr, unknown))}. "
+            f"Valid paths: {', '.join(valid)}.",
+            param_hint="'--columns'",
+        )
+    labels = {column.path: column.label for column in DEFAULT_COLUMNS.get(model, ())}
+    return tuple(Column(path, labels.get(path, humanise(path))) for path in paths)
 
 
 def member_skill_rows(result: TeamSkills) -> list[MemberSkillRow]:
