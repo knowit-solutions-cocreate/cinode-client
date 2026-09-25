@@ -152,10 +152,10 @@ minutes a task, however small the change. A good task:
    readers of `git log`: at most a few lines saying what changed and why,
    then any departure from the plan and any triage decision a reader might
    trip over. No checks output, no emoji, no "Generated with" footer and no
-   personnel data. The body ends with the `Co-Authored-By` trailer the PR's commits carry, after a blank line:
-   `--body` replaces GitHub's default message, which is where the commits'
-   trailers would otherwise come from. This applies to every squash merge,
-   whoever makes it.
+   personnel data. The body ends with the `Co-Authored-By` trailer the PR's
+   commits carry, after a blank line: `--body` replaces GitHub's default
+   message, which is where the commits' trailers would otherwise come from.
+   This applies to every squash merge, whoever makes it.
 7. The orchestrator pulls `main`, then goes on to the next task. After the
    last task it stops for the release (see *Human in the loop*).
 
