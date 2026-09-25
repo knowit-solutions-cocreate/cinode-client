@@ -15,7 +15,9 @@ semantic versioning; while the version is 0.x, minor versions may break.
   row per element of a list, with a few default columns, or a *Field* and
   *Value* table for a single object. Every command that takes `raw` takes
   `table`, except `users profile get` and `users resumes get`, and so do
-  `init` and `config show`. Its layout is not part of the output contract;
+  `teams skills`, `init` and `config show`. `teams skills` is one row per
+  member and skill, titled with the team's name, and its caption counts the
+  skipped members by reason. A table's layout is not part of the output contract;
   agents keep to JSON. `rich` is now a declared dependency.
 
 ## 0.3.0 — 2026-09-24

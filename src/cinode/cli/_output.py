@@ -56,6 +56,7 @@ FormatOption = Annotated[
 ]
 TreeFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.raw)]
 BuiltFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl)]
+TeamSkillsFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.table)]
 ObjectFormatOption = Annotated[Format, _format_option(Format.json, Format.table)]
 UserArg = Annotated[str, typer.Argument(help="A numeric user id, or `me`.")]
 KeywordIdArg = Annotated[int, typer.Argument(min=1, help="A keyword id.")]

@@ -238,6 +238,11 @@ with one row per field, nested fields included (`user.full_name`). An empty
 cell is `null`. Cells fold rather than truncate, and the width is `COLUMNS`
 if set, else the terminal's.
 
+`teams skills --format table` is one row per member and skill, with the
+team's name as its title. A member with no skills has one row with empty
+skill cells, and a caption counts the members skipped, by reason:
+"6 members skipped: forbidden 6".
+
 Tables are for humans. Their layout may change in any version, so agents
 and scripts use JSON. Errors stay JSON on stderr under `--format table`.
 

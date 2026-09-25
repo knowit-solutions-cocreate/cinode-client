@@ -257,6 +257,46 @@ def test_an_error_under_table_stays_json_on_stderr(cli: Cli, cli_api: respx.Mock
     assert json.loads(result.stderr)["error"]["type"] == "ForbiddenError"
 
 
+@pytest.mark.parametrize("all_skipped", [False, True], ids=["mixed", "all-skipped"])
+@pytest.mark.usefixtures("wide")
+def test_teams_skills_as_a_table(cli: Cli, cli_api: respx.MockRouter, all_skipped: bool) -> None:
+    prefix = "/v0.1/companies/99"
+    names = {1: ("Ada", "Example"), 2: ("Bo", "Sample"), 3: ("Cy", "Hidden")}
+    ids = [3] if all_skipped else [1, 2, 3]
+    members = [
+        member_payload(
+            companyUserId=u,
+            companyUser=user_payload(
+                companyUserId=u, id=u, firstName=names[u][0], lastName=names[u][1]
+            ),
+        )
+        for u in ids
+    ]
+    cli_api.get(f"{prefix}/teams/{TEAM_ID}").mock(
+        return_value=httpx.Response(200, json=team_payload())
+    )
+    cli_api.get(f"{prefix}/teams/{TEAM_ID}/members").mock(
+        return_value=httpx.Response(200, json=members)
+    )
+    rust = keyword_payload(id=22071, masterSynonym="Rust")
+    cli_api.get(f"{prefix}/users/1/skills").mock(
+        return_value=httpx.Response(
+            200, json=[skill_payload(companyUserId=1), skill_payload(id=22071, keyword=rust)]
+        )
+    )
+    cli_api.get(f"{prefix}/users/2/skills").mock(return_value=httpx.Response(200, json=[]))
+    cli_api.get(f"{prefix}/users/3/skills").mock(return_value=httpx.Response(403))
+    result = cli("teams", "skills", str(TEAM_ID), "--format", "table")
+    assert result.exit_code == 0
+    assert "1 member skipped: forbidden 1" in result.stdout
+    if all_skipped:
+        labels = ["User id", "Name", "Keyword id", "Skill", "Level", "Years"]
+        assert all(label in result.stdout for label in labels)
+    else:
+        assert "Example Team" in result.stdout
+        assert all(name in result.stdout for name in ("Python", "Rust", "Bo Sample"))
+
+
 @pytest.mark.parametrize(("mode", "private"), [(0o600, True), (0o644, False)])
 def test_credentials_come_from_the_file_and_config_show_reports_it(
     cli: Cli,

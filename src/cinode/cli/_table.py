@@ -21,6 +21,7 @@ from cinode.models import (
     TeamMember,
     UserSummary,
 )
+from cinode.ops import TeamSkills
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,19 @@ DEFAULT_COLUMNS: dict[type[CinodeModel], tuple[Column, ...]] = {
         ("skill.years_experience", "Years"),
     ),
 }
+
+
+def member_skill_rows(result: TeamSkills) -> list[MemberSkillRow]:
+    """One row per member and skill, in member order, then Cinode's skill order.
+
+    A member with no skills has one row, with `skill=None`.
+    """
+    rows: list[MemberSkillRow] = []
+    for member in result.members:
+        if not member.skills:
+            rows.append(MemberSkillRow(user=member.user))
+        rows += [MemberSkillRow(user=member.user, skill=skill) for skill in member.skills]
+    return rows
 
 
 def _cell(data: Any, path: str) -> str:
