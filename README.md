@@ -234,8 +234,8 @@ $ cinode users skills list me --format table
 
 A list is one row per element, with a few default columns. A single object
 (a `get`, `whoami`, `init`, `config show`) is a *Field* and *Value* table
-with one row per field, nested fields included (`user.full_name`). An empty
-cell is `null`. Cells fold rather than truncate, and the width is `COLUMNS`
+with one row per field, nested fields included (`user.full_name`). `null`
+shows as an empty cell. Cells fold rather than truncate, and the width is `COLUMNS`
 if set, else the terminal's.
 
 `teams skills --format table` is one row per member and skill, with the
