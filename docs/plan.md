@@ -13,8 +13,8 @@ picks what they show. Every output choice goes through one option,
 **Architecture:** CLI only. The library, its models and its JSON output do
 not change. `cli/_output.py` gains the `Format` type, the per-command format
 options and a `write()` that dispatches on the format. The new module
-`cli/_table.py` holds column paths, default columns, `--columns` validation
-and rendering. `rich` becomes a declared dependency; it is already installed,
+`cli/_table.py` holds column paths, default columns, rendering and, from
+Task 3, `--columns`. `rich` becomes a declared dependency; it is already installed,
 through typer.
 
 **Tech stack:** unchanged, plus `rich` as a direct dependency.
@@ -72,6 +72,15 @@ in the task named.
    `user` is `None` renders `user.full_name` as an empty cell. *(Task 2)*
 7. **`teams skills` loses no member.** A member with no skills still has a
    row, and skipped members are counted in the caption. *(Task 2)*
+8. **Cinode's text is data, not markup.** A value holding `[/x]` or
+   `:smile:` is printed as it is, and does not crash the renderer or turn
+   into an emoji. *(Task 2)*
+9. **An empty result still has headers.** An empty list, or a `teams skills`
+   whose members were all skipped, renders its row model's headers, which
+   is why the row model is passed in rather than read from the first
+   element. *(Task 2)*
+10. **`--columns` is checked before any request,** in one helper that every
+    command calls, not in thirteen copies. *(Task 3)*
 
 ## File map
 
@@ -102,10 +111,11 @@ pyproject.toml  uv.lock  README.md  CHANGELOG.md
     whose choices are exactly that set, in the order `json`, `jsonl`, `raw`,
     `table`, so that `--help` lists only what the command takes and anything
     else is a usage error from the parser. The option's parsed value is a
-    `Format`, and its default is `Format.json`. How the choices are
-    restricted (a `click_type`, or one `StrEnum` per set) is the
-    implementer's choice, as long as strict pyright passes and the help text
-    lists the choices. The sets in this task, which leave `table` out:
+    `Format`, and its default is `Format.json`. Typer 0.27's vendored click
+    has no `Choice`; `click_type=TyperChoice([Format.json, ...])` from
+    `typer._types` parses to `Format`, shows `<json|jsonl|raw>` in the help,
+    and passes strict pyright (checked while drafting). The sets in this
+    task, which leave `table` out:
     - `FormatOption`: `json`, `jsonl`, `raw`, for the resource commands and
       `whoami`
     - `TreeFormatOption`: `json`, `jsonl`, `raw`, for `users profile get`
@@ -167,6 +177,7 @@ Task 1.
     `model_computed_fields`. It goes into a field whose type, once `None` is
     taken out of an optional, is a `CinodeModel` subclass; it stops at lists
     and dicts, which are not columns; any other type is a scalar column.
+  - `humanise(path: str) -> str`: `"user.full_name"` → `"User full name"`.
   - `DEFAULT_COLUMNS: dict[type[CinodeModel], tuple[Column, ...]]`: the
     design's *Default columns* table.
   - `MemberSkillRow(CinodeModel)`: `user: UserSummary`,
@@ -174,75 +185,116 @@ Task 1.
   - `member_skill_rows(result: TeamSkills) -> list[MemberSkillRow]`: one row
     per member and skill, in member order and then Cinode's skill order, and
     one row with `skill=None` for a member with no skills.
-  - `parse_columns(value: str | None, model: type[CinodeModel]) -> tuple[Column, ...] | None`:
-    `None` when `value` is `None`; otherwise the columns named, labelled as
-    the design's *Headers* says. It raises `typer.BadParameter` for an empty
-    value, an empty item, or an unknown path, and the message of the last
-    lists `column_paths(model)`.
-  - `humanise(path: str) -> str`: `"user.full_name"` → `"User full name"`.
-  - `render(result: Result, *, columns: tuple[Column, ...] | None, title: str | None = None, caption: str | None = None) -> None`:
-    prints a `rich.table.Table` to stdout through a
-    `rich.console.Console(highlight=False)`, with every column set to
-    `overflow="fold"`. A list uses its element type's defaults unless
-    `columns` is given; a single object is a *Field* and *Value* table over
-    `column_paths` of its type, or over `columns`. Cells follow the design's
-    *Cells* rule.
-- In `cli/_output.py`: a `ColumnsOption` alias (`--columns`, `str | None`,
-  whose help says that an unknown path lists the valid ones). Each command
-  that offers `table` takes it, and calls `parse_columns` with its row model
-  before `run()`, so that a bad value exits 2 before any request. `--columns`
-  without `--format table` raises `typer.BadParameter`, also before any
-  request.
-- `write(result, *, format, columns=None, title=None, caption=None)`
-  calls `render` for `Format.table`.
+  - `cells(item: CinodeModel, columns: Sequence[Column]) -> list[str]`: one
+    string per column, following the design's *Cells* rule. It is pure, so
+    tests assert on cells rather than on rendered box characters.
+  - `render(result: Result, *, model: type[CinodeModel], columns: tuple[Column, ...] | None = None, title: str | None = None, caption: str | None = None) -> None`:
+    prints a `rich.table.Table` to stdout through
+    `rich.console.Console(highlight=False, markup=False, emoji=False)`, with
+    every column set to `overflow="fold"`. `model` is the row model, passed
+    in by the command, so an empty list still has headers. A list uses
+    `DEFAULT_COLUMNS[model]` unless `columns` is given; a single object is a
+    *Field* and *Value* table, one row per path of `column_paths(model)` (or
+    of `columns`), with the humanised path in *Field*. The title and caption
+    are `rich.text.Text(..., no_wrap=True, overflow="ignore")`, so they never
+    wrap.
+- In `cli/_output.py`: `write(result, *, format, model=None, columns=None, title=None, caption=None)`
+  calls `render` for `Format.table`; `run` passes the same keywords through.
+  Each command that offers `table` passes its row model.
 - `table` is added to the format sets as the design's table gives them:
   `FormatOption` and `ObjectFormatOption` gain it, and `BuiltFormatOption`
   splits in two, since `teams skills` takes `table` and `teams profiles`
   does not.
 - `teams skills` with `--format table` renders `member_skill_rows(result)`
-  with the title `result.team.name`, and, when `result.skipped` is not empty,
-  the caption "N member(s) skipped: " followed by the counts per reason, in
-  the order `forbidden`, `not_found`, leaving out zero counts.
-- README: a *Tables* section: `--format table`, `--columns`, an example, and
-  that tables are for humans while agents use JSON. The line saying that
-  `--table` output is planned goes. CHANGELOG: the
-  *Unreleased* entry covers `--format table` and `--columns`.
+  with the model `MemberSkillRow`, the title `result.team.name`, and, when
+  `result.skipped` is not empty, the caption "N member(s) skipped: "
+  followed by the counts per reason, in the order `forbidden`, `not_found`,
+  leaving out zero counts.
+- README: a *Tables* section: `--format table`, an example, and that tables
+  are for humans while agents use JSON. The line saying that `--table`
+  output is planned goes. CHANGELOG: the *Unreleased* entry covers
+  `--format table`.
 
 Tests (with `COLUMNS=200`):
-- [ ] One CLI test of `users skills list me --format table` with two skills,
-  one of them unrated: stdout holds the six default labels and both skill
-  names, the unrated skill's level cell is empty, and stdout is not JSON.
-- [ ] **Review focus 5 and 6:** one CLI test of `teams members list 9873
-  --format table --columns user_id,user.full_name`, with one member whose
-  `companyUser` is null: exit 0, the labels "User id" and "Name", and no
-  error.
+- [ ] One parametrized CLI test of `users skills list me --format table`:
+  - two skills, one of them unrated and one whose name is `[/x] :smile:`:
+    exit 0, stdout holds the six default labels and both names exactly as
+    given, and is not JSON
+  - an empty list: exit 0, and stdout holds the six default labels
+- [ ] **Review focus 6:** one test of `cells` over `DEFAULT_COLUMNS[Skill]`
+  and `DEFAULT_COLUMNS[TeamMember]`: an unrated skill's level cell is `""`,
+  `favourite` is `"true"` or `"false"`, and a member whose `user` is `None`
+  has `""` for `user.full_name`.
 - [ ] **Review focus 5:** one parametrized test of `column_paths`:
   - `TeamMember` includes `user.full_name` and `user.id`
   - `Resume` includes neither `blocks` nor anything under it
   - `MemberSkillRow` includes `skill.years_experience`
-- [ ] One parametrized CLI test of usage errors, each exiting 2 with a
-  `UsageError` envelope and no request:
+- [ ] One CLI test of `users get me --format table`: stdout holds the
+  labels "Field" and "Value", and the rows "Full name" and "Email" with their
+  values.
+- [ ] **Review focus 7 and 9:** one parametrized CLI test of `teams skills
+  9873 --format table`:
+  - three members, one with two skills, one with none, and one returning
+    403: stdout holds the team's name, both skill names, the second member's
+    name, and "1 member skipped: forbidden 1"
+  - one member, returning 403: exit 0, and stdout holds the default labels
+    and "1 member skipped: forbidden 1"
+- [ ] **Review focus 4:** one CLI test of `users skills list me --format
+  table` with a 403: exit 4, the `ForbiddenError` envelope on stderr, and
+  stdout empty.
+- [ ] Live: `cinode users skills list me --format table`, run with
+  `COLUMNS=200`, exits 0, and its stdout contains the owner's keyword name
+  and does not parse as JSON.
+- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
+  (without the slow tests). Commit in two chunks: "Add rich tables for lists
+  and objects", "Add a table for teams skills".
+
+### Task 3: Add --columns
+
+**Files:** `src/cinode/cli/_table.py`, `src/cinode/cli/_output.py`,
+`src/cinode/cli/users.py`, `src/cinode/cli/teams.py`,
+`src/cinode/cli/keywords.py`, `src/cinode/cli/config.py`,
+`src/cinode/cli/__init__.py`, `tests/cli/test_cli.py`, `README.md`,
+`CHANGELOG.md`.
+
+**Consumes:** `Column`, `column_paths`, `humanise`, `DEFAULT_COLUMNS` and
+`render`'s `columns` from Task 2.
+
+**Produces:**
+- In `cli/_table.py`: `parse_columns(value: str, model: type[CinodeModel]) -> tuple[Column, ...]`:
+  the columns named, in order, each labelled as the design's *Headers* says
+  (the label from `DEFAULT_COLUMNS[model]` if the path is there, else
+  `humanise(path)`). It raises `typer.BadParameter` for an empty value, an
+  empty item, or an unknown path, and the message of the last lists
+  `column_paths(model)`.
+- In `cli/_output.py`:
+  - a `ColumnsOption` alias (`--columns`, `str | None`, whose help says that
+    an unknown path lists the valid ones)
+  - `table_columns(format: Format, value: str | None, model: type[CinodeModel]) -> tuple[Column, ...] | None`:
+    `None` when `value` is `None`; a `typer.BadParameter` naming `--format
+    table` when `value` is given with any other format; otherwise
+    `parse_columns(value, model)`.
+- Every command that offers `table` takes `--columns`, calls `table_columns`
+  before `run()`, and passes the result on as `columns`.
+- README: the *Tables* section gains `--columns`, with an example, and says
+  that a bad path lists the valid ones. CHANGELOG: the *Unreleased* entry
+  covers `--columns`.
+
+Tests (with `COLUMNS=200`):
+- [ ] One CLI test of `teams members list 9873 --format table --columns
+  user_id,user.full_name,team_id`: exit 0, and stdout holds the labels
+  "User id", "Name" and "Team id" and not "Availability %".
+- [ ] **Review focus 10:** one parametrized CLI test of usage errors on
+  `users skills list me`, each exiting 2 with a `UsageError` envelope and
+  no request:
   - `--columns name` without `--format table`: the message names
     `--format table`
   - `--format table --columns bogus`: the message lists `keyword_id`
   - `--format table --columns ""`
   - `--format table --columns name,`
-- [ ] One CLI test of `users get me --format table`: stdout holds the
-  labels "Field" and "Value", and the rows "Full name" and "Email" with their
-  values.
-- [ ] **Review focus 7:** one CLI test of `teams skills 9873 --format table`
-  with three members: one with two skills, one with none, and one returning
-  403. Stdout holds the team's name, both skill names, the second member's
-  name, and "1 member skipped: forbidden 1".
-- [ ] **Review focus 4:** one CLI test of `users skills list me --format
-  table` with a 403: exit 4, the `ForbiddenError` envelope on stderr, and
-  stdout empty.
-- [ ] Live: `cinode users skills list me --format table` exits 0, and its
-  stdout contains the owner's keyword name and does not parse as JSON.
 - [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
-  (the slow tests included, since this is the last task). Commit in three
-  chunks: "Add rich tables for lists and objects", "Add --columns", "Add a
-  table for teams skills".
+  (the slow tests included, since this is the last task). Commit in one
+  chunk: "Add --columns".
 
 ---
 

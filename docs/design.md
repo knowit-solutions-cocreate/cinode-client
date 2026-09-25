@@ -757,9 +757,11 @@ scripts use JSON. What is part of the contract: which commands take `table`,
 the column paths `--columns` accepts, and that errors stay JSON on stderr.
 
 - **Rendering.** A `rich.table.Table`, printed by a `rich.console.Console`
-  on stdout with highlighting off. The width is the terminal's, else
-  `COLUMNS`, else 80, as `rich` decides; colour and styles appear only on a
-  terminal. Cells fold rather than truncate, so no value is cut short.
+  on stdout with highlighting, markup and emoji codes all off: Cinode's text
+  is data, so a name holding `[/x]` or `:smile:` is printed as it is. The
+  width is `COLUMNS` if set, else the terminal's, else 80, as `rich`
+  decides; colour and styles appear only on a terminal. Cells fold rather
+  than truncate, so no value is cut short.
 - **Rows.** A list is one row per element. A single object (a `get`,
   `whoami`, `init`, `config show`) is a two-column table, *Field* and
   *Value*, with one row per column path. `teams skills` is one row per member
@@ -779,10 +781,11 @@ the column paths `--columns` accepts, and that errors stay JSON on stderr.
   empty item, or to name a path the command's row model does not have; that
   error lists the valid paths, which makes it the way to discover them.
 - **Headers.** Each default column has a label. A path given with
-  `--columns` keeps its label if it is one of the command's defaults, and is
+  `--columns` keeps its label if it is one of its row model's defaults, and is
   otherwise humanised: dots and underscores become spaces and the first
   letter is capitalised (`user.full_name` → "User full name"). The *Field*
-  column of a single object shows the humanised path.
+  column of a single object always shows the humanised path, with or
+  without `--columns`.
 
 Default columns:
 
@@ -803,7 +806,8 @@ skill: Skill | None)`, which exists only in the CLI and is not in `cinode
 schema`. A member with skills has one row per skill, in Cinode's order; a
 member with none has one row with empty skill cells. The table's title is the
 team's name, and when members were skipped its caption counts them by
-reason: "6 members skipped: forbidden 6".
+reason: "6 members skipped: forbidden 6". Neither the title nor the caption
+wraps. When every member is skipped, the table has headers and no rows.
 
 ## Extending
 
