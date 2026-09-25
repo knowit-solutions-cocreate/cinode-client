@@ -8,7 +8,7 @@ from typer._click.exceptions import NoArgsIsHelpError, UsageError
 from typer.core import TyperGroup
 
 from cinode.cli import config, keywords, schema, teams, users
-from cinode.cli._output import JsonlOption, RawOption, run, usage_failure
+from cinode.cli._output import Format, FormatOption, run, usage_failure
 
 
 class _Root(TyperGroup):
@@ -56,9 +56,9 @@ app.command("init")(config.init)
 
 
 @app.command()
-def whoami(raw: RawOption = False, jsonl: JsonlOption = False) -> None:
+def whoami(format: FormatOption = Format.json) -> None:
     """The account owner's company and user ids."""
-    run(lambda c: c.whoami(), raw=raw, jsonl=jsonl)
+    run(lambda c: c.whoami(), format=format)
 
 
 def main() -> None:
