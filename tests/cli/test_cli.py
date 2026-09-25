@@ -40,6 +40,40 @@ def test_skills_list_writes_the_output_contract(cli: Cli, cli_api: respx.MockRou
     ]
 
 
+@pytest.mark.parametrize("format", ["jsonl", "raw"])
+def test_skills_list_writes_jsonl_and_raw(cli: Cli, cli_api: respx.MockRouter, format: str) -> None:
+    payloads = [skill_payload(), skill_payload(id=22071)]
+    cli_api.get(SKILLS).mock(return_value=httpx.Response(200, json=payloads))
+    result = cli("users", "skills", "list", "me", "--format", format)
+    assert result.exit_code == 0
+    if format == "jsonl":
+        lines = result.stdout.splitlines()
+        assert len(lines) == 2
+        assert all(isinstance(json.loads(line), dict) for line in lines)
+    else:
+        assert json.loads(result.stdout) == payloads
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["users", "skills", "list", "me", "--raw"],
+        ["users", "skills", "list", "me", "--jsonl"],
+        ["teams", "skills", str(TEAM_ID), "--format", "raw"],
+        ["users", "profile", "get", "me", "--format", "table"],
+    ],
+    ids=["raw-flag", "jsonl-flag", "teams-skills-raw", "profile-table"],
+)
+def test_a_format_a_command_does_not_take_is_a_usage_error(
+    cli: Cli, cli_api: respx.MockRouter, args: list[str]
+) -> None:
+    result = cli(*args)
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert json.loads(result.stderr)["error"]["type"] == "UsageError"
+    assert not cli_api.calls
+
+
 @pytest.mark.parametrize(
     ("status", "code", "error"),
     [

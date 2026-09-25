@@ -99,9 +99,9 @@ def test_users_skills_get_me(cinode: Cinode, jq: Jq, owner: Owner) -> None:
 
 
 def test_raw_skill_keeps_the_payload(cinode: Cinode, jq: Jq, owner: Owner) -> None:
-    out = ok(cinode, "users", "skills", "get", "me", owner.keyword_id, "--raw")
+    out = ok(cinode, "users", "skills", "get", "me", owner.keyword_id, "--format", "raw")
     found = jq(".keyword.masterSynonym == $name", out, name=owner.keyword_name)
-    assert found, "--raw lost .keyword.masterSynonym"
+    assert found, "--format raw lost .keyword.masterSynonym"
 
 
 def test_keywords_search(cinode: Cinode, jq: Jq, owner: Owner) -> None:

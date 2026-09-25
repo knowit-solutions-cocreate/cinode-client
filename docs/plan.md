@@ -138,20 +138,20 @@ pyproject.toml  uv.lock  README.md  CHANGELOG.md
   `--raw` and `--jsonl`, and for raw output one object per line.
 
 Tests:
-- [ ] **Review focus 1:** the existing CLI tests pass unedited.
-- [ ] One parametrized CLI test of `users skills list me` with two skills:
+- [x] **Review focus 1:** the existing CLI tests pass unedited.
+- [x] One parametrized CLI test of `users skills list me` with two skills:
   - `--format jsonl` writes two lines, each one JSON object
   - `--format raw` writes one JSON array of the two payloads, with their
     camelCase keys
-- [ ] **Review focus 2 and 3:** one parametrized CLI test of usage errors,
+- [x] **Review focus 2 and 3:** one parametrized CLI test of usage errors,
   each exiting 2 with a `UsageError` envelope on stderr, nothing on stdout,
   and no request:
   - `users skills list me --raw`
   - `users skills list me --jsonl`
   - `teams skills 9873 --format raw`
   - `users profile get me --format table`
-- [ ] Live: `test_raw_skill_keeps_the_payload` uses `--format raw`.
-- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
+- [x] Live: `test_raw_skill_keeps_the_payload` uses `--format raw`.
+- [x] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
   (without the slow tests). Commit in two chunks: "Replace --raw and --jsonl
   with --format", "Document --format".
 

@@ -3,10 +3,12 @@
 import json
 import sys
 from collections.abc import Callable, Sequence
+from enum import StrEnum
 from typing import Annotated, Any, NoReturn
 
 import typer
 from typer._click.exceptions import UsageError
+from typer._types import TyperChoice
 
 from cinode._client import Cinode
 from cinode.errors import (
@@ -21,8 +23,37 @@ from cinode.resources import UserRef
 
 type Result = CinodeModel | Sequence[CinodeModel]
 
-RawOption = Annotated[bool, typer.Option("--raw", help="Write Cinode's payload untouched.")]
-JsonlOption = Annotated[bool, typer.Option("--jsonl", help="Write one JSON object per line.")]
+
+class Format(StrEnum):
+    """What a command writes to stdout."""
+
+    json = "json"
+    jsonl = "jsonl"
+    raw = "raw"
+    table = "table"
+
+
+_FORMAT_HELP = {
+    Format.json: "json: one JSON document",
+    Format.jsonl: "jsonl: one JSON object per line",
+    Format.raw: "raw: Cinode's payload untouched",
+    Format.table: "table: a table for a human to read",
+}
+
+
+def _format_option(*formats: Format) -> Any:
+    """A `--format` option that takes exactly `formats`, and parses to a `Format`."""
+    return typer.Option(
+        "--format",
+        click_type=TyperChoice(formats),
+        help="; ".join(_FORMAT_HELP[f] for f in formats) + ".",
+    )
+
+
+FormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.raw)]
+TreeFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.raw)]
+BuiltFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl)]
+ObjectFormatOption = Annotated[Format, _format_option(Format.json)]
 UserArg = Annotated[str, typer.Argument(help="A numeric user id, or `me`.")]
 KeywordIdArg = Annotated[int, typer.Argument(min=1, help="A keyword id.")]
 ResumeIdArg = Annotated[int, typer.Argument(min=1, help="A resume id.")]
@@ -60,7 +91,7 @@ def client() -> Cinode:
     return Cinode()
 
 
-def run(fetch: Callable[[Cinode], Result], *, raw: bool = False, jsonl: bool = False) -> None:
+def run(fetch: Callable[[Cinode], Result], *, format: Format = Format.json) -> None:
     """Call `fetch` with a client from `client()`, and write its result to stdout.
 
     A `CinodeError` is written to stderr as `{"error": ...}`, and the process
@@ -72,7 +103,7 @@ def run(fetch: Callable[[Cinode], Result], *, raw: bool = False, jsonl: bool = F
             result = fetch(c)
     except CinodeError as error:
         fail(error)
-    write(result, raw=raw, jsonl=jsonl)
+    write(result, format=format)
 
 
 def fail(error: CinodeError) -> NoReturn:
@@ -94,18 +125,21 @@ def usage_failure(error: UsageError) -> NoReturn:
     raise typer.Exit(2)
 
 
-def write(result: Result, *, raw: bool, jsonl: bool) -> None:
-    """Write `result` to stdout: `model_dump(mode="json")`, or `.raw` when `raw`.
+def write(result: Result, *, format: Format) -> None:
+    """Write `result` to stdout in `format`.
 
-    A list is one JSON array, or one object per line when `jsonl`.
+    `json` and `jsonl` write `model_dump(mode="json")`, and `raw` writes `.raw`.
+    A list is one JSON array, or one object per line for `jsonl`.
     """
+    if format is Format.table:
+        raise AssertionError("no command offers --format table yet")
 
     def dump(model: CinodeModel) -> Any:
-        return model.raw if raw else model.model_dump(mode="json")
+        return model.raw if format is Format.raw else model.model_dump(mode="json")
 
     if isinstance(result, CinodeModel):
         sys.stdout.write(_dumps(dump(result)) + "\n")
-    elif jsonl:
+    elif format is Format.jsonl:
         sys.stdout.writelines(_dumps(dump(model)) + "\n" for model in result)
     else:
         sys.stdout.write(_dumps([dump(model) for model in result]) + "\n")

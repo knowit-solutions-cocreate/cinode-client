@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from cinode.cli._output import JsonlOption, RawOption, run
+from cinode.cli._output import BuiltFormatOption, Format, FormatOption, run
 from cinode.models import Team
 from cinode.ops import MemberProfile, MemberSkills, Skipped, team_profiles, team_skills
 
@@ -25,17 +25,15 @@ def _matches(team: Team, text: str | None) -> bool:
 
 
 @app.command("list")
-def list_teams(
-    match: MatchOption = None, raw: RawOption = False, jsonl: JsonlOption = False
-) -> None:
+def list_teams(match: MatchOption = None, format: FormatOption = Format.json) -> None:
     """Every team in the company, or those whose name contains `--match`."""
-    run(lambda c: [t for t in c.teams.list() if _matches(t, match)], raw=raw, jsonl=jsonl)
+    run(lambda c: [t for t in c.teams.list() if _matches(t, match)], format=format)
 
 
 @app.command("get")
-def get_team(team_id: TeamIdArg, raw: RawOption = False, jsonl: JsonlOption = False) -> None:
+def get_team(team_id: TeamIdArg, format: FormatOption = Format.json) -> None:
     """One team."""
-    run(lambda c: c.teams.get(team_id), raw=raw, jsonl=jsonl)
+    run(lambda c: c.teams.get(team_id), format=format)
 
 
 @members_app.callback()
@@ -44,9 +42,9 @@ def members() -> None:
 
 
 @members_app.command("list")
-def list_members(team_id: TeamIdArg, raw: RawOption = False, jsonl: JsonlOption = False) -> None:
+def list_members(team_id: TeamIdArg, format: FormatOption = Format.json) -> None:
     """A team's members."""
-    run(lambda c: c.teams.members.list(team_id), raw=raw, jsonl=jsonl)
+    run(lambda c: c.teams.members.list(team_id), format=format)
 
 
 def _progress(done: int, total: int, entry: MemberSkills | MemberProfile | Skipped) -> None:
@@ -55,14 +53,14 @@ def _progress(done: int, total: int, entry: MemberSkills | MemberProfile | Skipp
 
 
 @app.command("skills")
-def skills(team_id: TeamIdArg, jsonl: JsonlOption = False) -> None:
+def skills(team_id: TeamIdArg, format: BuiltFormatOption = Format.json) -> None:
     """A team and every member's skills. Members that cannot be read are listed in `skipped`."""
     on_progress = _progress if sys.stderr.isatty() else None
-    run(lambda c: team_skills(c, team_id, on_progress=on_progress), jsonl=jsonl)
+    run(lambda c: team_skills(c, team_id, on_progress=on_progress), format=format)
 
 
 @app.command("profiles")
-def profiles(team_id: TeamIdArg, jsonl: JsonlOption = False) -> None:
+def profiles(team_id: TeamIdArg, format: BuiltFormatOption = Format.json) -> None:
     """A team and every member's profile. Members that cannot be read are listed in `skipped`."""
     on_progress = _progress if sys.stderr.isatty() else None
-    run(lambda c: team_profiles(c, team_id, on_progress=on_progress), jsonl=jsonl)
+    run(lambda c: team_profiles(c, team_id, on_progress=on_progress), format=format)

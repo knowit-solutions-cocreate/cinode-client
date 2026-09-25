@@ -5,6 +5,13 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+- **Breaking:** `--raw` and `--jsonl` are removed; use `--format raw` and
+  `--format jsonl`. Raw output one object per line goes with them:
+  `--format raw` always writes one JSON document, and `jq -c '.[]'` splits a
+  list. `--format` is the only output option, and each command's `--help`
+  lists the formats it takes; any other is a usage error. `init` and
+  `config show` take `--format json`.
+
 ## 0.3.0 — 2026-09-24
 
 Credentials set up once: `cinode init` saves them to a private credentials
