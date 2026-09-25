@@ -7,14 +7,38 @@ from pathlib import Path
 import httpx
 import pytest
 import respx
-from support import TEAM_ID, member_payload, skill_payload, team_payload, user_payload
+from support import (
+    TEAM_ID,
+    keyword_payload,
+    member_payload,
+    skill_payload,
+    team_payload,
+    user_payload,
+)
 from typer.testing import Result
 
+from cinode.cli._table import DEFAULT_COLUMNS, MemberSkillRow, cells, column_paths
 from cinode.errors import FORBIDDEN_HINT
+from cinode.models import CinodeModel, Resume, Skill, TeamMember
 
 type Cli = Callable[..., Result]
 
 SKILLS = "/v0.1/companies/99/users/1001/skills"
+SKILL_LABELS = ["Keyword id", "Name", "Level", "Goal", "Years", "Favourite"]
+
+
+@pytest.fixture
+def wide(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A terminal wide enough that no table cell folds."""
+    monkeypatch.setenv("COLUMNS", "200")
+
+
+def is_json(text: str) -> bool:
+    try:
+        json.loads(text)
+    except ValueError:
+        return False
+    return True
 
 
 def test_skills_list_writes_the_output_contract(cli: Cli, cli_api: respx.MockRouter) -> None:
@@ -167,6 +191,70 @@ def test_teams_skills_exits_0_and_lists_a_forbidden_member(
     output = json.loads(result.stdout)
     assert [m["user"]["id"] for m in output["members"]] == [1]
     assert [(s["user"]["id"], s["reason"]) for s in output["skipped"]] == [(2, "forbidden")]
+
+
+@pytest.mark.parametrize("empty", [False, True], ids=["two-skills", "empty"])
+@pytest.mark.usefixtures("wide")
+def test_skills_list_as_a_table(cli: Cli, cli_api: respx.MockRouter, empty: bool) -> None:
+    markup = "[/x] :smile:"
+    payloads = [
+        skill_payload(level=0),
+        skill_payload(id=22071, keyword=keyword_payload(id=22071, masterSynonym=markup)),
+    ]
+    cli_api.get(SKILLS).mock(return_value=httpx.Response(200, json=[] if empty else payloads))
+    result = cli("users", "skills", "list", "me", "--format", "table")
+    assert result.exit_code == 0
+    assert all(label in result.stdout for label in SKILL_LABELS)
+    if not empty:
+        assert "Python" in result.stdout
+        assert markup in result.stdout
+        assert not is_json(result.stdout)
+
+
+def test_cells_of_the_default_columns() -> None:
+    unrated = Skill.parse(skill_payload(level=0, favourite=False))
+    assert cells(unrated, DEFAULT_COLUMNS[Skill]) == ["22070", "Python", "", "5", "4.0", "false"]
+    assert cells(Skill.parse(skill_payload()), DEFAULT_COLUMNS[Skill])[5] == "true"
+    member = TeamMember.parse(member_payload(companyUser=None))
+    assert cells(member, DEFAULT_COLUMNS[TeamMember]) == ["1001", "", "100"]
+
+
+@pytest.mark.parametrize(
+    ("model", "included", "excluded"),
+    [
+        (TeamMember, {"user.full_name", "user.id"}, set[str]()),
+        (Resume, set[str](), {"blocks"}),
+        (MemberSkillRow, {"skill.years_experience"}, set[str]()),
+    ],
+    ids=["nested-optional", "stops-at-lists", "computed-under-optional"],
+)
+def test_column_paths(model: type[CinodeModel], included: set[str], excluded: set[str]) -> None:
+    paths = column_paths(model)
+    assert included <= set(paths)
+    assert not any(p.split(".")[0] in excluded for p in paths)
+
+
+@pytest.mark.usefixtures("wide")
+def test_users_get_as_a_table(cli: Cli, cli_api: respx.MockRouter) -> None:
+    payload = user_payload(companyUserEmail="ada@example.test")
+    cli_api.get("/v0.1/companies/99/users/1001").mock(
+        return_value=httpx.Response(200, json=payload)
+    )
+    result = cli("users", "get", "me", "--format", "table")
+    assert result.exit_code == 0
+    lines = result.stdout.splitlines()
+    assert any("Field" in line and "Value" in line for line in lines)
+    assert any("Full name" in line and "Ada Example" in line for line in lines)
+    assert any("Email" in line and "ada@example.test" in line for line in lines)
+
+
+@pytest.mark.usefixtures("wide")
+def test_an_error_under_table_stays_json_on_stderr(cli: Cli, cli_api: respx.MockRouter) -> None:
+    cli_api.get(SKILLS).mock(return_value=httpx.Response(403))
+    result = cli("users", "skills", "list", "me", "--format", "table")
+    assert result.exit_code == 4
+    assert result.stdout == ""
+    assert json.loads(result.stderr)["error"]["type"] == "ForbiddenError"
 
 
 @pytest.mark.parametrize(("mode", "private"), [(0o600, True), (0o644, False)])

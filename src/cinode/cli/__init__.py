@@ -9,6 +9,7 @@ from typer.core import TyperGroup
 
 from cinode.cli import config, keywords, schema, teams, users
 from cinode.cli._output import Format, FormatOption, run, usage_failure
+from cinode.models import WhoAmI
 
 
 class _Root(TyperGroup):
@@ -58,7 +59,7 @@ app.command("init")(config.init)
 @app.command()
 def whoami(format: FormatOption = Format.json) -> None:
     """The account owner's company and user ids."""
-    run(lambda c: c.whoami(), format=format)
+    run(lambda c: c.whoami(), format=format, model=WhoAmI)
 
 
 def main() -> None:

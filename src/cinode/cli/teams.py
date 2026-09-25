@@ -6,7 +6,7 @@ from typing import Annotated
 import typer
 
 from cinode.cli._output import BuiltFormatOption, Format, FormatOption, run
-from cinode.models import Team
+from cinode.models import Team, TeamMember
 from cinode.ops import MemberProfile, MemberSkills, Skipped, team_profiles, team_skills
 
 app = typer.Typer(no_args_is_help=True, help="Teams, their members, and their skills and profiles.")
@@ -27,13 +27,13 @@ def _matches(team: Team, text: str | None) -> bool:
 @app.command("list")
 def list_teams(match: MatchOption = None, format: FormatOption = Format.json) -> None:
     """Every team in the company, or those whose name contains `--match`."""
-    run(lambda c: [t for t in c.teams.list() if _matches(t, match)], format=format)
+    run(lambda c: [t for t in c.teams.list() if _matches(t, match)], format=format, model=Team)
 
 
 @app.command("get")
 def get_team(team_id: TeamIdArg, format: FormatOption = Format.json) -> None:
     """One team."""
-    run(lambda c: c.teams.get(team_id), format=format)
+    run(lambda c: c.teams.get(team_id), format=format, model=Team)
 
 
 @members_app.callback()
@@ -44,7 +44,7 @@ def members() -> None:
 @members_app.command("list")
 def list_members(team_id: TeamIdArg, format: FormatOption = Format.json) -> None:
     """A team's members."""
-    run(lambda c: c.teams.members.list(team_id), format=format)
+    run(lambda c: c.teams.members.list(team_id), format=format, model=TeamMember)
 
 
 def _progress(done: int, total: int, entry: MemberSkills | MemberProfile | Skipped) -> None:
