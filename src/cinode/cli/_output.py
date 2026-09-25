@@ -11,7 +11,7 @@ from typer._click.exceptions import UsageError
 from typer._types import TyperChoice
 
 from cinode._client import Cinode
-from cinode.cli._table import Column, render
+from cinode.cli._table import Column, parse_columns, render
 from cinode.errors import (
     AuthError,
     CinodeError,
@@ -58,6 +58,15 @@ TreeFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, F
 BuiltFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl)]
 TeamSkillsFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.table)]
 ObjectFormatOption = Annotated[Format, _format_option(Format.json, Format.table)]
+ColumnsOption = Annotated[
+    str | None,
+    typer.Option(
+        "--columns",
+        metavar="PATH[,PATH...]",
+        help="With --format table: the column paths to show, in order. "
+        "An unknown path lists the valid ones.",
+    ),
+]
 UserArg = Annotated[str, typer.Argument(help="A numeric user id, or `me`.")]
 KeywordIdArg = Annotated[int, typer.Argument(min=1, help="A keyword id.")]
 ResumeIdArg = Annotated[int, typer.Argument(min=1, help="A resume id.")]
@@ -88,6 +97,21 @@ def user_ref(value: str) -> UserRef:
     if value.isascii() and value.isdigit() and int(value) > 0:
         return int(value)
     raise typer.BadParameter(f'must be a numeric user id or "me", not {value!r}.')
+
+
+def table_columns(
+    format: Format, value: str | None, model: type[CinodeModel]
+) -> tuple[Column, ...] | None:
+    """The columns `--columns` names for rows of `model`, or None when it is not given.
+
+    Raises `typer.BadParameter` (exit 2) when `--columns` is given without
+    `--format table`, or is not valid for `model`. Call it before any request.
+    """
+    if value is None:
+        return None
+    if format is not Format.table:
+        raise typer.BadParameter("needs --format table.", param_hint="'--columns'")
+    return parse_columns(value, model)
 
 
 def client() -> Cinode:

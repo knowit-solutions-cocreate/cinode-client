@@ -19,7 +19,7 @@ from typer._click.exceptions import UsageError
 
 from cinode._client import Cinode
 from cinode._config import Settings, credentials_path, decode_basic
-from cinode.cli._output import Format, ObjectFormatOption, fail, write
+from cinode.cli._output import ColumnsOption, Format, ObjectFormatOption, fail, table_columns, write
 from cinode.errors import CinodeError
 from cinode.models import CinodeModel
 
@@ -45,8 +45,9 @@ def config() -> None:
 
 
 @app.command("show")
-def show(format: ObjectFormatOption = Format.json) -> None:
+def show(format: ObjectFormatOption = Format.json, columns: ColumnsOption = None) -> None:
     """Where the credentials in use come from, without a network call."""
+    shown = table_columns(format, columns, ConfigReport)
     try:
         settings = Settings.resolve()
     except CinodeError as error:
@@ -69,7 +70,7 @@ def show(format: ObjectFormatOption = Format.json) -> None:
         file_mode=None if mode is None else f"{stat.S_IMODE(mode):04o}",
         file_private=None if mode is None else (mode & 0o077) == 0,
     )
-    write(report, format=format, model=ConfigReport)
+    write(report, format=format, model=ConfigReport, columns=shown)
 
 
 class InitResult(CinodeModel):
@@ -104,8 +105,10 @@ def init(
     from_env: FromEnvOption = False,
     force: ForceOption = False,
     format: ObjectFormatOption = Format.json,
+    columns: ColumnsOption = None,
 ) -> None:
     """Check a set of credentials against Cinode, and save them to the credentials file."""
+    shown = table_columns(format, columns, InitResult)
     path = credentials_path()
     if path.exists() and not force:
         fail(
@@ -148,7 +151,7 @@ def init(
     result = InitResult(
         path=str(path), access_id=access_id, company_id=who.company_id, user_id=who.user_id
     )
-    write(result, format=format, model=InitResult)
+    write(result, format=format, model=InitResult, columns=shown)
 
 
 def _from_env(env: Mapping[str, str]) -> tuple[str, str]:

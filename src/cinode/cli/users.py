@@ -3,6 +3,7 @@
 import typer
 
 from cinode.cli._output import (
+    ColumnsOption,
     Format,
     FormatOption,
     KeywordIdArg,
@@ -10,6 +11,7 @@ from cinode.cli._output import (
     TreeFormatOption,
     UserArg,
     run,
+    table_columns,
     user_ref,
 )
 from cinode.models import ResumeSummary, Skill, Team, User, UserSummary
@@ -26,30 +28,43 @@ app.add_typer(resumes_app, name="resumes")
 
 
 @app.command("list")
-def list_users(format: FormatOption = Format.json) -> None:
+def list_users(format: FormatOption = Format.json, columns: ColumnsOption = None) -> None:
     """Every user in the company."""
-    run(lambda c: c.users.list(), format=format, model=UserSummary)
+    shown = table_columns(format, columns, UserSummary)
+    run(lambda c: c.users.list(), format=format, model=UserSummary, columns=shown)
 
 
 @app.command("get")
-def get_user(user: UserArg, format: FormatOption = Format.json) -> None:
+def get_user(
+    user: UserArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """One user."""
     ref = user_ref(user)
-    run(lambda c: c.users.get(ref), format=format, model=User)
+    shown = table_columns(format, columns, User)
+    run(lambda c: c.users.get(ref), format=format, model=User, columns=shown)
 
 
 @skills_app.command("list")
-def list_skills(user: UserArg, format: FormatOption = Format.json) -> None:
+def list_skills(
+    user: UserArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """A user's skills."""
     ref = user_ref(user)
-    run(lambda c: c.users.skills.list(ref), format=format, model=Skill)
+    shown = table_columns(format, columns, Skill)
+    run(lambda c: c.users.skills.list(ref), format=format, model=Skill, columns=shown)
 
 
 @skills_app.command("get")
-def get_skill(user: UserArg, keyword_id: KeywordIdArg, format: FormatOption = Format.json) -> None:
+def get_skill(
+    user: UserArg,
+    keyword_id: KeywordIdArg,
+    format: FormatOption = Format.json,
+    columns: ColumnsOption = None,
+) -> None:
     """One of a user's skills, by keyword id."""
     ref = user_ref(user)
-    run(lambda c: c.users.skills.get(ref, keyword_id), format=format, model=Skill)
+    shown = table_columns(format, columns, Skill)
+    run(lambda c: c.users.skills.get(ref, keyword_id), format=format, model=Skill, columns=shown)
 
 
 @teams_app.callback()
@@ -58,10 +73,13 @@ def teams() -> None:
 
 
 @teams_app.command("list")
-def list_teams(user: UserArg, format: FormatOption = Format.json) -> None:
+def list_teams(
+    user: UserArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """The teams a user belongs to."""
     ref = user_ref(user)
-    run(lambda c: c.users.teams.list(ref), format=format, model=Team)
+    shown = table_columns(format, columns, Team)
+    run(lambda c: c.users.teams.list(ref), format=format, model=Team, columns=shown)
 
 
 @profile_app.callback()
@@ -77,7 +95,9 @@ def get_profile(user: UserArg, format: TreeFormatOption = Format.json) -> None:
 
 
 @resumes_app.command("list")
-def list_resumes(user: UserArg, format: FormatOption = Format.json) -> None:
+def list_resumes(
+    user: UserArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """A user's resumes, without their content.
 
     An empty list means no resumes, or no access: Cinode returns an empty list,
@@ -85,7 +105,8 @@ def list_resumes(user: UserArg, format: FormatOption = Format.json) -> None:
     tells the two apart.
     """
     ref = user_ref(user)
-    run(lambda c: c.users.resumes.list(ref), format=format, model=ResumeSummary)
+    shown = table_columns(format, columns, ResumeSummary)
+    run(lambda c: c.users.resumes.list(ref), format=format, model=ResumeSummary, columns=shown)
 
 
 @resumes_app.command("get")

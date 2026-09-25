@@ -9,11 +9,13 @@ import typer
 
 from cinode.cli._output import (
     BuiltFormatOption,
+    ColumnsOption,
     Format,
     FormatOption,
     TeamSkillsFormatOption,
     fetched,
     run,
+    table_columns,
     write,
 )
 from cinode.cli._table import MemberSkillRow, member_skill_rows
@@ -36,15 +38,26 @@ def _matches(team: Team, text: str | None) -> bool:
 
 
 @app.command("list")
-def list_teams(match: MatchOption = None, format: FormatOption = Format.json) -> None:
+def list_teams(
+    match: MatchOption = None, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """Every team in the company, or those whose name contains `--match`."""
-    run(lambda c: [t for t in c.teams.list() if _matches(t, match)], format=format, model=Team)
+    shown = table_columns(format, columns, Team)
+    run(
+        lambda c: [t for t in c.teams.list() if _matches(t, match)],
+        format=format,
+        model=Team,
+        columns=shown,
+    )
 
 
 @app.command("get")
-def get_team(team_id: TeamIdArg, format: FormatOption = Format.json) -> None:
+def get_team(
+    team_id: TeamIdArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """One team."""
-    run(lambda c: c.teams.get(team_id), format=format, model=Team)
+    shown = table_columns(format, columns, Team)
+    run(lambda c: c.teams.get(team_id), format=format, model=Team, columns=shown)
 
 
 @members_app.callback()
@@ -53,9 +66,12 @@ def members() -> None:
 
 
 @members_app.command("list")
-def list_members(team_id: TeamIdArg, format: FormatOption = Format.json) -> None:
+def list_members(
+    team_id: TeamIdArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """A team's members."""
-    run(lambda c: c.teams.members.list(team_id), format=format, model=TeamMember)
+    shown = table_columns(format, columns, TeamMember)
+    run(lambda c: c.teams.members.list(team_id), format=format, model=TeamMember, columns=shown)
 
 
 def _progress(done: int, total: int, entry: MemberSkills | MemberProfile | Skipped) -> None:
@@ -74,8 +90,13 @@ def _skipped_caption(skipped: Sequence[Skipped]) -> str | None:
 
 
 @app.command("skills")
-def skills(team_id: TeamIdArg, format: TeamSkillsFormatOption = Format.json) -> None:
+def skills(
+    team_id: TeamIdArg,
+    format: TeamSkillsFormatOption = Format.json,
+    columns: ColumnsOption = None,
+) -> None:
     """A team and every member's skills. Members that cannot be read are listed in `skipped`."""
+    shown = table_columns(format, columns, MemberSkillRow)
     on_progress = _progress if sys.stderr.isatty() else None
     result = fetched(lambda c: team_skills(c, team_id, on_progress=on_progress))
     if format is Format.table:
@@ -83,6 +104,7 @@ def skills(team_id: TeamIdArg, format: TeamSkillsFormatOption = Format.json) -> 
             member_skill_rows(result),
             format=format,
             model=MemberSkillRow,
+            columns=shown,
             title=result.team.name,
             caption=_skipped_caption(result.skipped),
         )

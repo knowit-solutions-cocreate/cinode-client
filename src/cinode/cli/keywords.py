@@ -4,7 +4,7 @@ from typing import Annotated
 
 import typer
 
-from cinode.cli._output import Format, FormatOption, run
+from cinode.cli._output import ColumnsOption, Format, FormatOption, run, table_columns
 from cinode.models import Keyword
 
 app = typer.Typer(no_args_is_help=True, help="The keyword catalogue.")
@@ -32,7 +32,10 @@ def keywords() -> None:
 
 
 @app.command("search")
-def search(term: TermArg, format: FormatOption = Format.json) -> None:
+def search(
+    term: TermArg, format: FormatOption = Format.json, columns: ColumnsOption = None
+) -> None:
     """The keywords matching a term."""
     checked = search_term(term)
-    run(lambda c: c.keywords.search(checked), format=format, model=Keyword)
+    shown = table_columns(format, columns, Keyword)
+    run(lambda c: c.keywords.search(checked), format=format, model=Keyword, columns=shown)
