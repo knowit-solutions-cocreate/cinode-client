@@ -179,7 +179,7 @@ def render(
     A list is one row per element, with `DEFAULT_COLUMNS[model]` unless
     `columns` is given. A single object is a *Field* and *Value* table, one row
     per path. Cinode's text is printed as it is: markup, emoji codes and
-    highlighting are off.
+    highlighting are off. The title and caption are never cropped.
     """
     table = Table(title=_heading(title), caption=_heading(caption))
     if isinstance(result, CinodeModel):
@@ -194,4 +194,4 @@ def render(
             table.add_column(column.label, overflow="fold")
         for item in result:
             table.add_row(*(Text(value) for value in cells(item, shown)))
-    Console(highlight=False, markup=False, emoji=False).print(table)
+    Console(highlight=False, markup=False, emoji=False).print(table, crop=False)
