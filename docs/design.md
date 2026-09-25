@@ -7,7 +7,8 @@ second.
 
 Version 0.1 covers skills, plus the users, teams and keywords needed to reach
 them. Version 0.2 adds user profiles (the CV data) and resumes. Version 0.3
-adds a credentials file, written by `cinode init`. The structure
+adds a credentials file, written by `cinode init`. Version 0.4 adds tables
+for humans, and puts every output choice behind one `--format` option. The structure
 is built so the rest of the API can be added without breaking what is already
 there.
 
@@ -33,6 +34,13 @@ there.
   library. This design makes that wrapper thin; it does not build it.
 - **Skill sets.** `GET companies/{cid}/skill-sets` returns 403 for a non-admin
   owner and there is no per-set read. It cannot work from an ordinary account.
+- **User roles.** `GET users/{u}/roles` returns project-assignment roles,
+  and needs the CompanyManager access level and the Assignments module. It
+  returns 403 for the owner's own id and for other members (verified
+  2026-09-25), as does the company-level `managers`.
+- **Keyword lookup by id.** There is no such endpoint: `keywords/{id}`,
+  `keywords/synonyms/{id}` and `keywords` all return 404 (verified
+  2026-09-25). `keywords.search` is the only keyword read.
 - **Choosing a profile translation.** No parameter or path selects one. The
   profile returns the texts that exist, labelled by language, and the caller
   picks. See *Profiles and resumes*.
@@ -181,7 +189,8 @@ src/cinode/
     team_profiles.py   team_profiles(), TeamProfiles
   cli/
     __init__.py        typer app, entry point
-    _output.py         JSON/JSONL emitting, error envelope, exit codes
+    _output.py         --format, JSON/JSONL/raw emitting, error envelope, exit codes
+    _table.py          --format table and --columns: column paths, defaults, rich rendering
     config.py          `cinode init` (the only code that writes a file) and `cinode config show`
     users.py  teams.py  keywords.py  schema.py
 ```
@@ -324,7 +333,7 @@ class CinodeModel(BaseModel):
 - **Only IDs are required.** Because the spec's `required` means nothing, every
   field other than an entity's id is optional with a default.
 - **Raw payload kept.** Every model keeps the dict it was parsed from as a
-  private attribute, exposed as `.raw`. Callers and the CLI (`--raw`) can reach
+  private attribute, exposed as `.raw`. Callers and the CLI (`--format raw`) can reach
   fields the models don't cover without the models' output shape filling up
   with camelCase leftovers. `.raw` does not count towards equality: two models
   with the same fields are equal.
@@ -674,15 +683,41 @@ cinode init [--access-id ID] [--from-env] [--force]
 cinode config show
 ```
 
-`<user>` is a numeric id or `me`.
+`<user>` is a numeric id or `me`. Every command but `schema` also takes
+`--format`, and those that take `--format table` take `--columns` (see
+*Output contract* and *Tables*).
 
 ### Output contract
 
-- **stdout is data only.** By default each command writes one JSON document:
-  an array for `list` and `search`, an object for `get`. `--jsonl` writes one
-  object per line. The shape is the model's `model_dump(mode="json")`, the same
-  one `cinode schema` describes. `--raw` writes Cinode's payload untouched.
-- **stderr carries errors and progress.** A failure writes one JSON object:
+- **stdout is data only.** Every command but `schema` takes
+  `--format FORMAT`, which is the only output option:
+
+  | Format | Output |
+  |---|---|
+  | `json` (default) | one JSON document: an array for `list` and `search`, an object for `get` |
+  | `jsonl` | one JSON object per line; for a single object, the same as `json` |
+  | `raw` | Cinode's payload untouched, as one JSON document |
+  | `table` | a table for a human to read (see *Tables*) |
+
+  The JSON shape is the model's `model_dump(mode="json")`, the same one
+  `cinode schema` describes. JSON is the default whether or not stdout is a
+  terminal, so output never depends on where it goes.
+- **Not every command takes every format.** A command's `--help` lists the
+  formats it takes, and any other is a usage error (exit 2), raised before
+  any request:
+
+  | Commands | Formats |
+  |---|---|
+  | the resource commands under `users`, `teams` and `keywords`, and `whoami` | `json`, `jsonl`, `raw`, `table` |
+  | `users profile get`, `users resumes get` | `json`, `jsonl`, `raw` |
+  | `teams skills` | `json`, `jsonl`, `table` |
+  | `teams profiles` | `json`, `jsonl` |
+  | `init`, `config show` | `json`, `table` |
+
+  `raw` is offered only where there is a Cinode payload: the results of
+  `teams skills`, `teams profiles`, `init` and `config show` are built, not
+  parsed. Profiles, resumes and team profiles are trees with no useful table.
+- **stderr carries errors and progress,** whatever the format. A failure writes one JSON object:
   `{"error": {"type": "ForbiddenError", "status": 403, "path": "...",
   "message": "...", "correlation_id": "..."}}`. Usage errors (exit 2) use the
   same envelope, with `"type": "UsageError"` and `status`, `path` and
@@ -703,19 +738,76 @@ cinode config show
 | 6 | rate limited |
 
 - `teams skills` and `teams profiles` exit 0 even when members were skipped.
-  Skipped members appear in the output's `skipped` array. Neither takes
-  `--raw`, since their results are built, not parsed.
+  Skipped members appear in the output's `skipped` array.
 - `--match` on `teams list` is a case-insensitive substring filter applied on
   the client side. It exists because the list holds 478 teams and an agent's
   context is limited; anything more complex belongs in `jq`.
-- `--raw` on `users profile get` and `users resumes get` writes Cinode's whole
-  payload, which is hundreds of kilobytes. The default output is the lean
-  model.
-- `cinode init` and `cinode config show` take neither `--raw` nor `--jsonl`.
-  Their outputs are in `cinode schema` as `init` and `config`. `init`'s
-  prompts go to stderr, so stdout still holds only its JSON object.
-- `--table` output for humans is planned for a later version (see the
-  roadmap).
+- `--format raw` on `users profile get` and `users resumes get` writes
+  Cinode's whole payload, which is hundreds of kilobytes. The default output
+  is the lean model.
+- The outputs of `init` and `config show` are in `cinode schema` as `init`
+  and `config`. `init`'s prompts go to stderr, so stdout still holds only
+  its output.
+
+### Tables
+
+`--format table` is for a human at a terminal. The layout of a table is
+**not** part of the contract, and may change in any version; agents and
+scripts use JSON. What is part of the contract: which commands take `table`,
+the column paths `--columns` accepts, and that errors stay JSON on stderr.
+
+- **Rendering.** A `rich.table.Table`, printed by a `rich.console.Console`
+  on stdout with highlighting, markup and emoji codes all off: Cinode's text
+  is data, so a name holding `[/x]` or `:smile:` is printed as it is. The
+  width is `COLUMNS` if set, else the terminal's, else 80, as `rich`
+  decides; colour and styles appear only on a terminal. Cells fold rather
+  than truncate, so no value is cut short.
+- **Rows.** A list is one row per element. A single object (a `get`,
+  `whoami`, `init`, `config show`) is a two-column table, *Field* and
+  *Value*, with one row per column path. `teams skills` is one row per member
+  and skill (see below). An empty list is a table with headers and no rows.
+- **Column paths.** A column is a path: field names joined by dots, through
+  nested models but not into lists, ending at a scalar (a string, number,
+  boolean or date, or `null`). Computed fields count, so `full_name` and
+  `years_experience` are columns. `user.full_name` is a column of a team
+  member; `blocks` of a resume is not.
+- **Cells.** The value at the path in `model_dump(mode="json")`. `null`, or a
+  `null` model on the way, is an empty cell; a boolean is `true` or `false`;
+  anything else is its string.
+- **`--columns PATH[,PATH…]`** replaces the default columns with the paths
+  given, in that order; for a single object it picks the rows. Items are
+  stripped of spaces. It is a usage error (exit 2), before any request, to
+  give `--columns` without `--format table`, to give it empty or with an
+  empty item, or to name a path the command's row model does not have; that
+  error lists the valid paths, which makes it the way to discover them.
+- **Headers.** Each default column has a label. A path given with
+  `--columns` keeps its label if it is one of its row model's defaults, and is
+  otherwise humanised: dots and underscores become spaces and the first
+  letter is capitalised (`user.full_name` → "User full name"). The *Field*
+  column of a single object always shows the humanised path, with or
+  without `--columns`.
+
+Default columns:
+
+| Row model | Commands | Default columns (label) |
+|---|---|---|
+| `UserSummary` | `users list` | `id` (Id), `full_name` (Name) |
+| `Skill` | `users skills list` | `keyword_id` (Keyword id), `name` (Name), `level` (Level), `level_goal` (Goal), `years_experience` (Years), `favourite` (Favourite) |
+| `Team` | `users teams list`, `teams list` | `id` (Id), `name` (Name), `parent_team_id` (Parent) |
+| `TeamMember` | `teams members list` | `user_id` (User id), `user.full_name` (Name), `availability_percent` (Availability %) |
+| `ResumeSummary` | `users resumes list` | `id` (Id), `title` (Title), `language` (Language), `updated` (Updated) |
+| `Keyword` | `keywords search` | `id` (Id), `name` (Name), `type` (Type), `verified` (Verified) |
+| `MemberSkillRow` | `teams skills` | `user.id` (User id), `user.full_name` (Name), `skill.keyword_id` (Keyword id), `skill.name` (Skill), `skill.level` (Level), `skill.years_experience` (Years) |
+
+A single object's default rows are all of its column paths, in field order.
+
+**`teams skills`** has the row model `MemberSkillRow(user: UserSummary,
+skill: Skill | None)`, which exists only in the CLI and is not in `cinode
+schema`. A member with skills has one row per skill, in Cinode's order; a
+member with none has one row with empty skill cells. The table's title is the
+team's name, and when members were skipped its caption counts them by
+reason: "6 members skipped: forbidden 6". Neither the title nor the caption
+wraps. When every member is skipped, the table has headers and no rows.
 
 ## Extending
 
@@ -736,9 +828,10 @@ Rules for growth that keep existing callers working:
 6. Versioning follows semver. While the version is 0.x, minor versions may
    break; each break is recorded in `CHANGELOG.md`.
 
-Areas likely to come next, in rough order: `--table` output, user roles, team managers, keyword
-lookups, and the profile sections v0.2 leaves out (`references`, `extSkills`,
-`commitments`).
+Areas likely to come next, in rough order: team managers, and the profile
+sections v0.2 leaves out (`references`, `extSkills`, `commitments`).
+`teams/{t}/managers` was verified on 2026-09-25: it returned 200 on every team
+sampled, `[]` on most, and its elements parse as `UserSummary`.
 
 ## Data handling
 
@@ -776,6 +869,8 @@ What earns a unit test:
 - **Configuration:** the precedence between environment and file, the config
   file's location, and malformed files.
 - **CLI:** the exact JSON output shape, the error envelope and the exit codes;
+  which formats a command refuses; `--columns` validation, and the rows of a
+  table (not its layout);
   `cinode init`'s file mode, its verify-before-write and its refusal to
   overwrite.
 
@@ -802,6 +897,8 @@ normal use:
 | `cinode keywords search python` | contains `id == 22070` |
 | `cinode teams members list 9873` | contains the owner |
 | `cinode users skills list 1` (or another unreadable id) | exit code 4 or 5, error JSON on stderr |
+| `cinode users skills get me 22070 --format raw` | `.keyword.masterSynonym == "Python"` |
+| `cinode users skills list me --format table` | exit 0; stdout contains "Python" and is not JSON |
 | `cinode users profile get me` | `.user_id` matches; the output validates against `Profile` |
 | `cinode users profile get 1` (the unreadable id) | exit code 4 or 5, error JSON on stderr |
 | `cinode users resumes list me` | every element's `.user_id` matches |
@@ -827,8 +924,8 @@ repository.
 ## Tooling
 
 - Python 3.14, packaged with `uv`, `src/` layout, console script `cinode`.
-- Runtime dependencies: `httpx`, `pydantic`, `typer`, all at their latest
-  versions.
+- Runtime dependencies: `httpx`, `pydantic`, `typer` and `rich` (for tables; typer
+  already depends on it), all at their latest versions.
 - Development dependencies: `pytest`, `respx`, `ruff` (lint and format),
   `pyright` (strict).
 - Markers: `live` and `slow`, both excluded by default.

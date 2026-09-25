@@ -9,6 +9,7 @@ archived under [`docs/plans/`](plans/).
 | **v0.1** | Released 2026-09-23 ([plan](plans/v0.1.md), [release](https://github.com/knowit-solutions-cocreate/cinode-client/releases/tag/v0.1.0)) | Transport, skills, users, teams, keywords, `team_skills`, CLI, live acceptance suite |
 | **v0.2** | Released 2026-09-24 ([plan](plans/v0.2.md), [release](https://github.com/knowit-solutions-cocreate/cinode-client/releases/tag/v0.2.0)) | User profiles and resumes (`users.profile.get`, `users.resumes.list/get`, `ops.team_profiles`) |
 | **v0.3** | Released 2026-09-24 ([plan](plans/v0.3.md), [release](https://github.com/knowit-solutions-cocreate/cinode-client/releases/tag/v0.3.0)) | Credentials file: `cinode init`, `cinode config show`; `Cinode()` resolves arguments, environment, file (`from_env` removed) |
-| v0.4 | Later | Output for humans (`--table`); more reads as needed: user roles, team managers, keyword lookups |
+| **v0.4** | In progress ([plan](plan.md)) | Output for humans: `--format json\|jsonl\|raw\|table` replaces `--raw` and `--jsonl`; `rich` tables and `--columns` |
+| v0.5 | Later | More reads as needed: team managers (verified), the left-out profile sections |
 | — | Separate project | MCP server, depending on `cinode-client>=0.1` |
 | later | If needed | `AsyncCinode`, only if the MCP server needs concurrency |
