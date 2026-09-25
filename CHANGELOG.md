@@ -10,7 +10,15 @@ semantic versioning; while the version is 0.x, minor versions may break.
   `--format raw` always writes one JSON document, and `jq -c '.[]'` splits a
   list. `--format` is the only output option, and each command's `--help`
   lists the formats it takes; any other is a usage error. `init` and
-  `config show` take `--format json`.
+  `config show` take `--format json` and `--format table`.
+- **`--format table`** prints a table for a human to read, with `rich`: one
+  row per element of a list, with a few default columns, or a *Field* and
+  *Value* table for a single object. Every command that takes `raw` takes
+  `table`, except `users profile get` and `users resumes get`, and so do
+  `teams skills`, `init` and `config show`. `teams skills` is one row per
+  member and skill, titled with the team's name, and its caption counts the
+  skipped members by reason. A table's layout is not part of the output contract;
+  agents keep to JSON. `rich` is now a declared dependency.
 
 ## 0.3.0 — 2026-09-24
 

@@ -1,4 +1,4 @@
-"""What every command shares: JSON output, the error envelope and exit codes."""
+"""What every command shares: output formats, the error envelope and exit codes."""
 
 import json
 import sys
@@ -11,6 +11,7 @@ from typer._click.exceptions import UsageError
 from typer._types import TyperChoice
 
 from cinode._client import Cinode
+from cinode.cli._table import Column, render
 from cinode.errors import (
     AuthError,
     CinodeError,
@@ -50,10 +51,13 @@ def _format_option(*formats: Format) -> Any:
     )
 
 
-FormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.raw)]
+FormatOption = Annotated[
+    Format, _format_option(Format.json, Format.jsonl, Format.raw, Format.table)
+]
 TreeFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.raw)]
 BuiltFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl)]
-ObjectFormatOption = Annotated[Format, _format_option(Format.json)]
+TeamSkillsFormatOption = Annotated[Format, _format_option(Format.json, Format.jsonl, Format.table)]
+ObjectFormatOption = Annotated[Format, _format_option(Format.json, Format.table)]
 UserArg = Annotated[str, typer.Argument(help="A numeric user id, or `me`.")]
 KeywordIdArg = Annotated[int, typer.Argument(min=1, help="A keyword id.")]
 ResumeIdArg = Annotated[int, typer.Argument(min=1, help="A resume id.")]
@@ -91,19 +95,32 @@ def client() -> Cinode:
     return Cinode()
 
 
-def run(fetch: Callable[[Cinode], Result], *, format: Format = Format.json) -> None:
-    """Call `fetch` with a client from `client()`, and write its result to stdout.
+def fetched[R](fetch: Callable[[Cinode], R]) -> R:
+    """Call `fetch` with a client from `client()`, and return its result.
 
     A `CinodeError` is written to stderr as `{"error": ...}`, and the process
-    exits with its code. Validate arguments before calling `run()`: anything
-    else raised in here is a bug, and surfaces as one.
+    exits with its code. Validate arguments before calling `fetched()`:
+    anything else raised in here is a bug, and surfaces as one.
     """
     try:
         with client() as c:
-            result = fetch(c)
+            return fetch(c)
     except CinodeError as error:
         fail(error)
-    write(result, format=format)
+
+
+def run(
+    fetch: Callable[[Cinode], Result],
+    *,
+    format: Format = Format.json,
+    model: type[CinodeModel] | None = None,
+    columns: tuple[Column, ...] | None = None,
+    title: str | None = None,
+    caption: str | None = None,
+) -> None:
+    """Write the result of `fetched(fetch)` to stdout, as `write` does."""
+    result = fetched(fetch)
+    write(result, format=format, model=model, columns=columns, title=title, caption=caption)
 
 
 def fail(error: CinodeError) -> NoReturn:
@@ -125,14 +142,27 @@ def usage_failure(error: UsageError) -> NoReturn:
     raise typer.Exit(2)
 
 
-def write(result: Result, *, format: Format) -> None:
+def write(
+    result: Result,
+    *,
+    format: Format,
+    model: type[CinodeModel] | None = None,
+    columns: tuple[Column, ...] | None = None,
+    title: str | None = None,
+    caption: str | None = None,
+) -> None:
     """Write `result` to stdout in `format`.
 
     `json` and `jsonl` write `model_dump(mode="json")`, and `raw` writes `.raw`.
-    A list is one JSON array, or one object per line for `jsonl`.
+    A list is one JSON array, or one object per line for `jsonl`. `table`
+    renders `result` with rows of `model`, which a command offering `table`
+    must pass; `columns`, `title` and `caption` are used only by `table`.
     """
     if format is Format.table:
-        raise AssertionError("no command offers --format table yet")
+        if model is None:
+            raise AssertionError("a command that offers --format table passes its row model")
+        render(result, model=model, columns=columns, title=title, caption=caption)
+        return
 
     def dump(model: CinodeModel) -> Any:
         return model.raw if format is Format.raw else model.model_dump(mode="json")

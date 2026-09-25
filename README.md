@@ -182,13 +182,16 @@ cinode teams list --match cocreate | jq '.[].id'
   | `json` (default) | one JSON document: an array for `list` and `search`, an object for `get` |
   | `jsonl` | one JSON object per line; for a single object, the same as `json` |
   | `raw` | Cinode's payload untouched, as one JSON document |
+  | `table` | a table for a human to read (see *Tables*) |
 
   The JSON shape is what `cinode schema` describes. Not every command takes
   every format: `raw` is refused by `teams skills`, `teams profiles`, `init`
   and `config show`, whose results are built rather than read from Cinode,
-  and `jsonl` by `init` and `config show`. A command's `--help` lists the
-  formats it takes, and any other is a usage error.
-- **stderr carries errors and progress.** A failure writes one JSON object:
+  and `jsonl` by `init` and `config show`. `table` is refused by
+  `users profile get`, `users resumes get` and `teams profiles`, whose
+  results are trees. A command's `--help` lists the formats it takes, and any
+  other is a usage error.
+- **stderr carries errors and progress,** whatever the format. A failure writes one JSON object:
 
   ```json
   {"error": {"type": "ForbiddenError", "status": 403, "path": "...", "message": "...", "correlation_id": "..."}}
@@ -205,7 +208,6 @@ cinode teams list --match cocreate | jq '.[].id'
   `users profile get` tells the two apart.
 - `--match` on `teams list` is a case-insensitive substring filter, applied on
   the client side. Anything more complex belongs in `jq`.
-- `--table` output for humans is planned, not in v1.
 
 | Exit code | Meaning |
 |---|---|
@@ -216,6 +218,33 @@ cinode teams list --match cocreate | jq '.[].id'
 | 4 | forbidden |
 | 5 | not found |
 | 6 | rate limited |
+
+### Tables
+
+`--format table` prints a table for a human at a terminal:
+
+```
+$ cinode users skills list me --format table
+┏━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━┳━━━━━━┳━━━━━━━┳━━━━━━━━━━━┓
+┃ Keyword id ┃ Name   ┃ Level ┃ Goal ┃ Years ┃ Favourite ┃
+┡━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━╇━━━━━━╇━━━━━━━╇━━━━━━━━━━━┩
+│ 22070      │ Python │ 4     │ 5    │ 4.0   │ true      │
+└────────────┴────────┴───────┴──────┴───────┴───────────┘
+```
+
+A list is one row per element, with a few default columns. A single object
+(a `get`, `whoami`, `init`, `config show`) is a *Field* and *Value* table
+with one row per field, nested fields included (`user.full_name`). `null`
+shows as an empty cell. Cells fold rather than truncate, and the width is `COLUMNS`
+if set, else the terminal's.
+
+`teams skills --format table` is one row per member and skill, with the
+team's name as its title. A member with no skills has one row with empty
+skill cells, and a caption counts the members skipped, by reason:
+"6 members skipped: forbidden 6".
+
+Tables are for humans. Their layout may change in any version, so agents
+and scripts use JSON. Errors stay JSON on stderr under `--format table`.
 
 ## Tests
 

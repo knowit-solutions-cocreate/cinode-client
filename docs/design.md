@@ -761,7 +761,11 @@ the column paths `--columns` accepts, and that errors stay JSON on stderr.
   is data, so a name holding `[/x]` or `:smile:` is printed as it is. The
   width is `COLUMNS` if set, else the terminal's, else 80, as `rich`
   decides; colour and styles appear only on a terminal. Cells fold rather
-  than truncate, so no value is cut short.
+  than truncate, so no value is cut short, and the title and caption are
+  printed whole, past the width if need be. Every C0 and C1 control
+  character in a cell, the title or the caption is replaced by U+FFFD, so
+  Cinode's text never reaches the terminal as an escape sequence; a newline
+  is kept, and breaks the line as folding does.
 - **Rows.** A list is one row per element. A single object (a `get`,
   `whoami`, `init`, `config show`) is a two-column table, *Field* and
   *Value*, with one row per column path. `teams skills` is one row per member

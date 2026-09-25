@@ -12,6 +12,7 @@ from cinode.cli._output import (
     run,
     user_ref,
 )
+from cinode.models import ResumeSummary, Skill, Team, User, UserSummary
 
 app = typer.Typer(no_args_is_help=True, help="Users, and their skills, teams, profile and resumes.")
 skills_app = typer.Typer(no_args_is_help=True, help="One user's skills.")
@@ -27,28 +28,28 @@ app.add_typer(resumes_app, name="resumes")
 @app.command("list")
 def list_users(format: FormatOption = Format.json) -> None:
     """Every user in the company."""
-    run(lambda c: c.users.list(), format=format)
+    run(lambda c: c.users.list(), format=format, model=UserSummary)
 
 
 @app.command("get")
 def get_user(user: UserArg, format: FormatOption = Format.json) -> None:
     """One user."""
     ref = user_ref(user)
-    run(lambda c: c.users.get(ref), format=format)
+    run(lambda c: c.users.get(ref), format=format, model=User)
 
 
 @skills_app.command("list")
 def list_skills(user: UserArg, format: FormatOption = Format.json) -> None:
     """A user's skills."""
     ref = user_ref(user)
-    run(lambda c: c.users.skills.list(ref), format=format)
+    run(lambda c: c.users.skills.list(ref), format=format, model=Skill)
 
 
 @skills_app.command("get")
 def get_skill(user: UserArg, keyword_id: KeywordIdArg, format: FormatOption = Format.json) -> None:
     """One of a user's skills, by keyword id."""
     ref = user_ref(user)
-    run(lambda c: c.users.skills.get(ref, keyword_id), format=format)
+    run(lambda c: c.users.skills.get(ref, keyword_id), format=format, model=Skill)
 
 
 @teams_app.callback()
@@ -60,7 +61,7 @@ def teams() -> None:
 def list_teams(user: UserArg, format: FormatOption = Format.json) -> None:
     """The teams a user belongs to."""
     ref = user_ref(user)
-    run(lambda c: c.users.teams.list(ref), format=format)
+    run(lambda c: c.users.teams.list(ref), format=format, model=Team)
 
 
 @profile_app.callback()
@@ -84,7 +85,7 @@ def list_resumes(user: UserArg, format: FormatOption = Format.json) -> None:
     tells the two apart.
     """
     ref = user_ref(user)
-    run(lambda c: c.users.resumes.list(ref), format=format)
+    run(lambda c: c.users.resumes.list(ref), format=format, model=ResumeSummary)
 
 
 @resumes_app.command("get")

@@ -216,36 +216,36 @@ Task 1.
   `--format table`.
 
 Tests (with `COLUMNS=200`):
-- [ ] One parametrized CLI test of `users skills list me --format table`:
+- [x] One parametrized CLI test of `users skills list me --format table`:
   - two skills, one of them unrated and one whose name is `[/x] :smile:`:
     exit 0, stdout holds the six default labels and both names exactly as
     given, and is not JSON
   - an empty list: exit 0, and stdout holds the six default labels
-- [ ] **Review focus 6:** one test of `cells` over `DEFAULT_COLUMNS[Skill]`
+- [x] **Review focus 6:** one test of `cells` over `DEFAULT_COLUMNS[Skill]`
   and `DEFAULT_COLUMNS[TeamMember]`: an unrated skill's level cell is `""`,
   `favourite` is `"true"` or `"false"`, and a member whose `user` is `None`
   has `""` for `user.full_name`.
-- [ ] **Review focus 5:** one parametrized test of `column_paths`:
+- [x] **Review focus 5:** one parametrized test of `column_paths`:
   - `TeamMember` includes `user.full_name` and `user.id`
   - `Resume` includes neither `blocks` nor anything under it
   - `MemberSkillRow` includes `skill.years_experience`
-- [ ] One CLI test of `users get me --format table`: stdout holds the
+- [x] One CLI test of `users get me --format table`: stdout holds the
   labels "Field" and "Value", and the rows "Full name" and "Email" with their
   values.
-- [ ] **Review focus 7 and 9:** one parametrized CLI test of `teams skills
+- [x] **Review focus 7 and 9:** one parametrized CLI test of `teams skills
   9873 --format table`:
   - three members, one with two skills, one with none, and one returning
     403: stdout holds the team's name, both skill names, the second member's
     name, and "1 member skipped: forbidden 1"
   - one member, returning 403: exit 0, and stdout holds the default labels
     and "1 member skipped: forbidden 1"
-- [ ] **Review focus 4:** one CLI test of `users skills list me --format
+- [x] **Review focus 4:** one CLI test of `users skills list me --format
   table` with a 403: exit 4, the `ForbiddenError` envelope on stderr, and
   stdout empty.
-- [ ] Live: `cinode users skills list me --format table`, run with
+- [x] Live: `cinode users skills list me --format table`, run with
   `COLUMNS=200`, exits 0, and its stdout contains the owner's keyword name
   and does not parse as JSON.
-- [ ] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
+- [x] Run the four checks, and `CINODE_LIVE_TESTS=1 uv run pytest -m live`
   (without the slow tests). Commit in two chunks: "Add rich tables for lists
   and objects", "Add a table for teams skills".
 

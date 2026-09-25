@@ -69,7 +69,7 @@ def show(format: ObjectFormatOption = Format.json) -> None:
         file_mode=None if mode is None else f"{stat.S_IMODE(mode):04o}",
         file_private=None if mode is None else (mode & 0o077) == 0,
     )
-    write(report, format=format)
+    write(report, format=format, model=ConfigReport)
 
 
 class InitResult(CinodeModel):
@@ -148,7 +148,7 @@ def init(
     result = InitResult(
         path=str(path), access_id=access_id, company_id=who.company_id, user_id=who.user_id
     )
-    write(result, format=format)
+    write(result, format=format, model=InitResult)
 
 
 def _from_env(env: Mapping[str, str]) -> tuple[str, str]:

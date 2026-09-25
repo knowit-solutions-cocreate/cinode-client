@@ -104,6 +104,22 @@ def test_raw_skill_keeps_the_payload(cinode: Cinode, jq: Jq, owner: Owner) -> No
     assert found, "--format raw lost .keyword.masterSynonym"
 
 
+def test_skills_list_as_a_table(cinode: Cinode, owner: Owner) -> None:
+    result = cinode(
+        "users", "skills", "list", "me", "--format", "table", env=os.environ | {"COLUMNS": "200"}
+    )
+    code = result.returncode
+    assert code == 0, result.stderr
+    found = owner.keyword_name in result.stdout
+    assert found, "the owner's keyword name is not in the table"
+    parses = True
+    try:
+        json.loads(result.stdout)
+    except ValueError:
+        parses = False
+    assert not parses, "the table parses as JSON"
+
+
 def test_keywords_search(cinode: Cinode, jq: Jq, owner: Owner) -> None:
     out = ok(cinode, "keywords", "search", owner.keyword_name)
     found = jq("any(.[]; .id == $kid)", out, kid=owner.keyword_id)
