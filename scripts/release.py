@@ -115,11 +115,18 @@ def mark_released(roadmap: str, version: str, date: str) -> str:
     return roadmap.replace(in_progress, released)
 
 
+def project_version(pyproject: str | None) -> str:
+    try:
+        return tomllib.loads(pyproject or "")["project"]["version"]
+    except (tomllib.TOMLDecodeError, KeyError) as error:
+        raise ReleaseError("pyproject.toml has no [project] version") from error
+
+
 def set_version(pyproject: str, version: str) -> str:
     new, count = re.subn(
         r'^version = "[^"]*"$', f'version = "{version}"', pyproject, count=1, flags=re.M
     )
-    if count != 1 or tomllib.loads(new)["project"]["version"] != version:
+    if count != 1 or project_version(new) != version:
         raise ReleaseError("pyproject.toml has no [project] version line first")
     return new
 
@@ -172,7 +179,7 @@ def read_commit(root: Path, commit: str) -> Reader:
 def check(read: Reader, version: str) -> None:
     """Everything a tag `v<version>` needs to be released."""
     plan = f"docs/plans/{minor(version)}.md"
-    found = tomllib.loads(read("pyproject.toml") or "")["project"]["version"]
+    found = project_version(read("pyproject.toml"))
     if found != version:
         raise ReleaseError(f"pyproject.toml has version {found}, not {version}")
     release_notes(read("CHANGELOG.md") or "", version)
@@ -190,7 +197,7 @@ def tag(root: Path, version: str | None) -> None:
     """Tags `origin/main` with its version and pushes the tag, once `check` passes there."""
     subprocess.run(["git", "fetch", "--quiet", "--tags", "origin", "main"], cwd=root, check=True)
     read = read_commit(root, "origin/main")
-    version = agree(tomllib.loads(read("pyproject.toml") or "")["project"]["version"], version)
+    version = agree(project_version(read("pyproject.toml")), version)
     check(read, version)
     name = f"v{version}"
     exists = subprocess.run(

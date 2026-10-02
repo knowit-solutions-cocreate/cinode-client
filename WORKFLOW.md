@@ -143,13 +143,14 @@ Everything after the tag is automatic.
      `uv run scripts/release.py prepare --summary "<paragraph>"`. The
      version is the roadmap's in-progress one, `v0.4` giving `0.4.0`. The
      script refuses a plan with open tasks. It moves the plan to
-     `docs/plans/v<major>.<minor>.md` with `git mv` and adds the archive
-     banner and its relative links rewritten for `docs/plans/`, leaves the stub in `docs/plan.md`, turns the changelog's
-     *Unreleased* entries into the version's dated section under the summary,
-     marks the roadmap row released, sets the version in `pyproject.toml`
-     and runs `uv lock`. Last, it runs the same check as the release
-     workflow on the result. If it fails partway, `git restore --staged
-     --worktree . && git clean -fd docs/plans` undoes it. The summary is one or two sentences on what the
+     `docs/plans/v<major>.<minor>.md` with `git mv`, adds the archive
+     banner, rewrites its relative links for `docs/plans/`, and leaves the
+     stub in `docs/plan.md`. It turns the changelog's *Unreleased* entries
+     into the version's dated section under the summary, marks the roadmap
+     row released, sets the version in `pyproject.toml` and runs `uv lock`.
+     Last, it runs the same check as the release workflow on the result. If
+     it fails partway, `git restore --staged --worktree . && git clean -fd
+     docs/plans` undoes it. The summary is one or two sentences on what the
      version is for, since it opens the release notes.
    - It commits, opens the PR titled `Release v<version>`, and stops. The
      release PR is mechanical, so it gets no reviewers; CI is enough.
@@ -165,8 +166,10 @@ Everything after the tag is automatic.
    and creates the GitHub release `cinode-client <version>` with them
    attached. Its body, from `scripts/release.py notes`, is that changelog
    section and an *Install* block with the wheel's URL. If a step before the
-   last fails, nothing is published. Fix it in a PR, then delete the tag (and
-   any draft release a failed upload left) and run `release.py tag` again.
+   last fails, nothing is published. Fix it in a PR, delete any draft release
+   a failed upload left, delete the tag both remotely and locally
+   (`git push --delete origin v<version> && git tag -d v<version>`), and run
+   `release.py tag` again.
 
 ## Working agreements
 

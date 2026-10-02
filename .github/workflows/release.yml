@@ -15,8 +15,9 @@ jobs:
     env:
       TAG: ${{ github.ref_name }}
     steps:
-      # The write token reaches only the publish step: checkout keeps no copy,
-      # since the steps before it run third-party code.
+      # The write token is kept from the steps that run the project's
+      # dependencies: checkout keeps no copy, and only the publish step and
+      # setup-uv (for its downloads) are given it.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
