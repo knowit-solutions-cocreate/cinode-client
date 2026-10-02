@@ -33,7 +33,9 @@ Repository: https://github.com/knowit-solutions-cocreate/cinode-client. It is
   versions, one line each. When a version is released, its plan moves
   unchanged to `docs/plans/v<major>.<minor>.md` with `git mv`, so that
   `git log --follow` keeps its history, and `docs/plan.md` becomes a stub
-  or the next version's plan. An archived plan is frozen: only its links may
+  or the next version's plan. `scripts/release.py prepare` makes these
+  edits (see *Releasing* in `WORKFLOW.md`); it adds only the archive banner
+  to the plan. An archived plan is frozen: only its links may
   be fixed. Before archiving, anything in the plan that is still true about
   the system moves to a living document (the design, the README or this file).
 - **Few, fast tests.** Write a test only when it pins behaviour the design
