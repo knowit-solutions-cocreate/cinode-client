@@ -25,7 +25,7 @@ module-name = "cinode"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["tests"]
+pythonpath = ["tests", "scripts"]
 addopts = "-m 'not live and not slow'"
 strict_markers = true
 markers = [
@@ -43,7 +43,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pyright]
 typeCheckingMode = "strict"
-include = ["src"]
+include = ["src", "scripts"]
 
 [dependency-groups]
 dev = [
