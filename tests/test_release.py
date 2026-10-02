@@ -24,6 +24,15 @@ Older.
 """
 
 
+def test_archiving_the_plan_keeps_its_links_working() -> None:
+    plan = "# Plan\n\nSee [x](design.md), [y](https://a.b/c) and [z](#task-1).\n"
+
+    archived = archive_plan(plan, "0.4.0", "2026-10-02")
+
+    assert archived.startswith("# Plan\n\n> **Archived.**")
+    assert archived.endswith("See [x](../design.md), [y](https://a.b/c) and [z](#task-1).\n")
+
+
 def test_the_release_notes_are_the_dated_section() -> None:
     dated = date_changelog(CHANGELOG, "0.4.0", "2026-10-02", "What the\n  release   does.")
 

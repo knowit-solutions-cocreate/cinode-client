@@ -15,6 +15,7 @@
 
 import argparse
 import datetime
+import posixpath
 import re
 import subprocess
 import sys
@@ -25,6 +26,8 @@ from pathlib import Path
 
 REPO_URL = "https://github.com/knowit-solutions-cocreate/cinode-client"
 VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
+# A Markdown link to a relative path: no scheme, not an anchor, not absolute.
+RELATIVE_LINK_RE = re.compile(r"\]\((?![a-z]+:|#|/)([^)\s]+)\)")
 
 
 class ReleaseError(Exception):
@@ -44,7 +47,8 @@ def release_url(version: str) -> str:
 
 
 def archive_plan(plan: str, version: str, date: str) -> str:
-    """The plan with the archive banner after its title. It refuses open tasks."""
+    """The plan as `docs/plans/` holds it: the archive banner after its title, and
+    its relative links rewritten to work from there. It refuses open tasks."""
     if "- [ ]" in plan:
         raise ReleaseError("docs/plan.md still has unticked boxes")
     title, sep, rest = plan.partition("\n\n")
@@ -57,6 +61,9 @@ def archive_plan(plan: str, version: str, date: str) -> str:
         "> review comments refer to. The current state lives in\n"
         "> [`docs/design.md`](../design.md); what comes next is in\n"
         "> [`docs/roadmap.md`](../roadmap.md)."
+    )
+    rest = RELATIVE_LINK_RE.sub(
+        lambda link: f"]({posixpath.normpath(posixpath.join('..', link[1]))})", rest
     )
     return f"{title}\n\n{banner}\n\n{rest}"
 
@@ -112,8 +119,8 @@ def set_version(pyproject: str, version: str) -> str:
     new, count = re.subn(
         r'^version = "[^"]*"$', f'version = "{version}"', pyproject, count=1, flags=re.M
     )
-    if count != 1:
-        raise ReleaseError("pyproject.toml has no version line")
+    if count != 1 or tomllib.loads(new)["project"]["version"] != version:
+        raise ReleaseError("pyproject.toml has no [project] version line first")
     return new
 
 
@@ -127,6 +134,17 @@ def release_notes(changelog: str, version: str) -> str:
     if match is None:
         raise ReleaseError(f"CHANGELOG.md has no dated section for {version}")
     return match[1].strip() + "\n"
+
+
+def release_body(changelog: str, version: str) -> str:
+    """The release's body: `version`'s changelog section, then how to install it."""
+    wheel = f"{REPO_URL}/releases/download/v{version}/cinode_client-{version}-py3-none-any.whl"
+    return (
+        f"{release_notes(changelog, version)}\n"
+        "### Install\n\n"
+        f"```sh\nuv tool install {wheel}\n```\n\n"
+        "See the README for credentials, the CLI output contract and exit codes.\n"
+    )
 
 
 Reader = Callable[[str], str | None]
@@ -201,13 +219,15 @@ def prepare(root: Path, version: str | None, date: str, summary: str) -> None:
     roadmap = mark_released(roadmap, version, date)
     pyproject = set_version((root / "pyproject.toml").read_text(), version)
 
+    # `uv lock` is the step most likely to fail, so it goes first.
+    (root / "pyproject.toml").write_text(pyproject)
+    subprocess.run(["uv", "lock"], cwd=root, check=True)
     subprocess.run(["git", "mv", str(plan_path), str(archived)], cwd=root, check=True)
     archived.write_text(plan)
     plan_path.write_text(plan_stub(version))
     (root / "CHANGELOG.md").write_text(changelog)
     (root / "docs" / "roadmap.md").write_text(roadmap)
-    (root / "pyproject.toml").write_text(pyproject)
-    subprocess.run(["uv", "lock"], cwd=root, check=True)
+    check(read_tree(root), version)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -218,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     prep.add_argument("--summary", required=True, help="the changelog section's intro")
     prep.add_argument("--date", default=datetime.date.today().isoformat())
     commands.add_parser("check", help="check that a tag can be released").add_argument("version")
-    commands.add_parser("notes", help="print the release notes").add_argument("version")
+    commands.add_parser("notes", help="print the release's body").add_argument("version")
     tag_ = commands.add_parser("tag", help="tag origin/main and push the tag")
     tag_.add_argument("version", nargs="?", help="default: the one origin/main has")
     args = parser.parse_args(argv)
@@ -233,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
             case "tag":
                 tag(root, args.version)
             case _:
-                sys.stdout.write(release_notes((root / "CHANGELOG.md").read_text(), args.version))
+                sys.stdout.write(release_body((root / "CHANGELOG.md").read_text(), args.version))
     except ReleaseError as error:
         print(f"release: {error}", file=sys.stderr)
         return 1
