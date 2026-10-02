@@ -22,8 +22,8 @@ role in bold, for example `**Reviewer (spec)**`.
 
 ## Starting a version
 
-When `docs/plan.md` has no open tasks, no version is in progress. The human
-starts a **designer** session:
+When `docs/plan.md` is the stub that *Releasing* leaves, no version is in
+progress. The human starts a **designer** session:
 
 > You are the designer for cinode-client. Read `CLAUDE.md` and
 > `WORKFLOW.md`, then follow *Starting a version*. We are planning the next
@@ -100,7 +100,7 @@ minutes a task, however small the change. A good task:
    message, which is where the commits' trailers would otherwise come from.
    This applies to every squash merge, whoever makes it.
 7. The orchestrator pulls `main`, then goes on to the next task. After the
-   last task it stops for the release (see *Human in the loop*).
+   last task it opens the release PR and stops (see *Releasing*).
 
 **Limits:** at most three review rounds per PR.
 
@@ -114,9 +114,9 @@ agents decide and carry on.
 2. Approving and merging the handoff PR (design changes and plan).
 
 **Build phase** (the orchestrator stops, says why in one line, and waits):
-3. **Release.** When the last task is merged, the orchestrator reports that
-   the plan is done. Tagging, building and publishing a release waits for the
-   human.
+3. **Release.** When the last task is merged, the orchestrator opens the
+   release PR and reports that the plan is done. Merging that PR and pushing
+   the tag wait for the human (see *Releasing*).
 4. **The design needs to change**, beyond fixing wording.
 5. **A task cannot be done as the plan describes it.**
 6. **A PR is still not clean after three review rounds.**
@@ -128,6 +128,48 @@ agents decide and carry on.
 
 The orchestrator never works around a stop, for example by weakening a test
 or narrowing a task to get past it.
+
+## Releasing
+
+A release is one PR, made by a script, and one tag, pushed by the human.
+Everything after the tag is automatic.
+
+1. **The orchestrator opens the release PR** once the last task is merged and
+   every box in `docs/plan.md` is ticked, the *Done when* list included.
+   - First it moves anything in the plan that is still true about the system
+     into a living document (the design, the README or `CLAUDE.md`), in its
+     own small PR.
+   - Then, in a fresh worktree on a branch `release-v<version>`, it runs
+     `uv run scripts/release.py prepare --summary "<paragraph>"`. The
+     version is the roadmap's in-progress one, `v0.4` giving `0.4.0`. The
+     script refuses a plan with open tasks. It moves the plan to
+     `docs/plans/v<major>.<minor>.md` with `git mv`, adds the archive
+     banner, rewrites its relative links for `docs/plans/`, and leaves the
+     stub in `docs/plan.md`. It turns the changelog's *Unreleased* entries
+     into the version's dated section under the summary, marks the roadmap
+     row released, sets the version in `pyproject.toml` and runs `uv lock`.
+     Last, it runs the same check as the release workflow on the result. If
+     it fails partway, `git restore --staged --worktree . && git clean -fd
+     docs/plans` undoes it. The summary is one or two sentences on what the
+     version is for, since it opens the release notes.
+   - It commits, opens the PR titled `Release v<version>`, and stops. The
+     release PR is mechanical, so it gets no reviewers; CI is enough.
+2. **The human merges the release PR**, with a squash body as in *The loop*,
+   and runs `uv run scripts/release.py tag`. It fetches `origin/main`, reads
+   the version there, runs the same check as the workflow against that
+   commit, and refuses a tag that already exists. Then it makes the annotated
+   tag `v<version>` on `origin/main` and pushes it.
+3. **`.github/workflows/release.yml` publishes.** On a `v*` tag it checks that
+   the tag is on `main`, and, with `scripts/release.py check`, that it matches
+   the version in `pyproject.toml`, a dated changelog section and an archived
+   plan. It runs the four checks, builds the wheel and sdist with `uv build`,
+   and creates the GitHub release `cinode-client <version>` with them
+   attached. Its body, from `scripts/release.py notes`, is that changelog
+   section and an *Install* block with the wheel's URL. If a step before the
+   last fails, nothing is published. Fix it in a PR, delete any draft release
+   a failed upload left, delete the tag both remotely and locally
+   (`git push --delete origin v<version> && git tag -d v<version>`), and run
+   `release.py tag` again.
 
 ## Working agreements
 
@@ -186,9 +228,10 @@ The orchestrator keeps no state of its own; the repository holds it. To pick
 up after a break or a lost context:
 
 1. Pull `main`. The first task in `docs/plan.md` with unticked boxes is next.
-   If `docs/plan.md` has no open tasks, no version is in progress, and the
-   next step is a designer session, which the human starts (see *Starting a
-   version*).
+   If every box is ticked, the release PR is next (see *Releasing*), unless
+   it is already open. If `docs/plan.md` is the stub, no version is in
+   progress, and the next step is a designer session, which the human starts
+   (see *Starting a version*).
 2. Run `gh pr list`. If that task already has an open PR, read its comments to
    see which round it is in and what was last triaged. Carry on from there.
 
@@ -255,6 +298,8 @@ design change is a stop (see *Human in the loop*).
     matter of taste. Nits are optional.
 - Keeps the human informed with one line per step: PR opened, review round N,
   merged.
+- Opens the release PR after the last task, as *Releasing* describes, and
+  stops there.
 - Adds each new lesson to *Working agreements* as soon as it is learnt.
 
 ### Implementer
