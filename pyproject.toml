@@ -1,6 +1,6 @@
 [project]
 name = "cinode-client"
-version = "0.3.0"
+version = "0.4.0"
 description = "A read-only Python library and CLI for the Cinode API."
 readme = "README.md"
 license = "MIT"

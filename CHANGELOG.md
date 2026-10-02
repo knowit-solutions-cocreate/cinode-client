@@ -5,6 +5,12 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+## 0.4.0 — 2026-10-02
+
+Output for humans: `--format table` prints tables, and `--columns` picks what
+they show. `--format` is now the only output option, replacing `--raw` and
+`--jsonl`.
+
 - **Breaking:** `--raw` and `--jsonl` are removed; use `--format raw` and
   `--format jsonl`. Raw output one object per line goes with them:
   `--format raw` always writes one JSON document, and `jq -c '.[]'` splits a
