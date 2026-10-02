@@ -7,16 +7,20 @@ on:
 permissions:
   contents: write
 
+concurrency: release
+
 jobs:
   release:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.ref_name }}
-      GH_TOKEN: ${{ github.token }}
     steps:
+      # The write token reaches only the publish step: checkout keeps no copy,
+      # since the steps before it run third-party code.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --locked
       - name: Check that the tag is on main
@@ -30,6 +34,8 @@ jobs:
       - run: uv build
       - run: uv run scripts/release.py notes "${TAG#v}" > "$RUNNER_TEMP/notes.md"
       - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "$TAG" dist/*
           --verify-tag

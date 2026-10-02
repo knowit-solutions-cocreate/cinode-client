@@ -144,10 +144,12 @@ Everything after the tag is automatic.
      version is the roadmap's in-progress one, `v0.4` giving `0.4.0`. The
      script refuses a plan with open tasks. It moves the plan to
      `docs/plans/v<major>.<minor>.md` with `git mv` and adds the archive
-     banner, leaves the stub in `docs/plan.md`, turns the changelog's
+     banner and its relative links rewritten for `docs/plans/`, leaves the stub in `docs/plan.md`, turns the changelog's
      *Unreleased* entries into the version's dated section under the summary,
      marks the roadmap row released, sets the version in `pyproject.toml`
-     and runs `uv lock`. The summary is one or two sentences on what the
+     and runs `uv lock`. Last, it runs the same check as the release
+     workflow on the result. If it fails partway, `git restore --staged
+     --worktree . && git clean -fd docs/plans` undoes it. The summary is one or two sentences on what the
      version is for, since it opens the release notes.
    - It commits, opens the PR titled `Release v<version>`, and stops. The
      release PR is mechanical, so it gets no reviewers; CI is enough.
@@ -161,9 +163,10 @@ Everything after the tag is automatic.
    the version in `pyproject.toml`, a dated changelog section and an archived
    plan. It runs the four checks, builds the wheel and sdist with `uv build`,
    and creates the GitHub release `cinode-client <version>` with them
-   attached, and that changelog section, from `scripts/release.py notes`, as
-   its body. If any step fails, nothing is published: fix it in a PR, then
-   delete the tag and push it again.
+   attached. Its body, from `scripts/release.py notes`, is that changelog
+   section and an *Install* block with the wheel's URL. If a step before the
+   last fails, nothing is published. Fix it in a PR, then delete the tag (and
+   any draft release a failed upload left) and run `release.py tag` again.
 
 ## Working agreements
 
