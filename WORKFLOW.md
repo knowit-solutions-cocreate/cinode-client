@@ -140,8 +140,9 @@ Everything after the tag is automatic.
      into a living document (the design, the README or `CLAUDE.md`), in its
      own small PR.
    - Then, in a fresh worktree on a branch `release-v<version>`, it runs
-     `uv run scripts/release.py prepare <version> --summary "<paragraph>"`.
-     The script refuses a plan with open tasks. It moves the plan to
+     `uv run scripts/release.py prepare --summary "<paragraph>"`. The
+     version is the roadmap's in-progress one, `v0.4` giving `0.4.0`. The
+     script refuses a plan with open tasks. It moves the plan to
      `docs/plans/v<major>.<minor>.md` with `git mv` and adds the archive
      banner, leaves the stub in `docs/plan.md`, turns the changelog's
      *Unreleased* entries into the version's dated section under the summary,
@@ -151,8 +152,10 @@ Everything after the tag is automatic.
    - It commits, opens the PR titled `Release v<version>`, and stops. The
      release PR is mechanical, so it gets no reviewers; CI is enough.
 2. **The human merges the release PR**, with a squash body as in *The loop*,
-   and pushes the tag on the merge commit:
-   `git tag v<version> origin/main && git push origin v<version>`.
+   and runs `uv run scripts/release.py tag`. It fetches `origin/main`, reads
+   the version there, runs the same check as the workflow against that
+   commit, and refuses a tag that already exists. Then it makes the annotated
+   tag `v<version>` on `origin/main` and pushes it.
 3. **`.github/workflows/release.yml` publishes.** On a `v*` tag it checks that
    the tag is on `main`, and, with `scripts/release.py check`, that it matches
    the version in `pyproject.toml`, a dated changelog section and an archived

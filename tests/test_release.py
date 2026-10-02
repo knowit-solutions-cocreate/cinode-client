@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from pathlib import Path
 
 import pytest
 from release import (
@@ -7,6 +6,7 @@ from release import (
     archive_plan,
     check,
     date_changelog,
+    in_progress,
     mark_released,
     release_notes,
 )
@@ -37,6 +37,7 @@ def test_the_release_notes_are_the_dated_section() -> None:
         (lambda: archive_plan("# Plan\n\n- [x] done\n- [ ] open\n", "0.4.0", "d"), "unticked"),
         (lambda: date_changelog("## Unreleased\n\n## 0.3.0\n", "0.4.0", "d", "s"), "empty"),
         (lambda: mark_released("| **v0.4** | Later | x |", "0.4.0", "d"), "in-progress"),
+        (lambda: in_progress("| **v0.4** | Later | x |"), "exactly one"),
     ],
 )
 def test_prepare_refuses_a_version_that_is_not_done(
@@ -56,16 +57,17 @@ def test_prepare_refuses_a_version_that_is_not_done(
     ],
 )
 def test_check_matches_the_tag_to_the_repository(
-    tmp_path: Path, version: str, plan: bool, message: str | None
+    version: str, plan: bool, message: str | None
 ) -> None:
-    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.4.0"\n')
-    (tmp_path / "CHANGELOG.md").write_text("## 0.4.0 — 2026-10-02\n\nNotes.\n")
-    (tmp_path / "docs" / "plans").mkdir(parents=True)
+    files = {
+        "pyproject.toml": '[project]\nversion = "0.4.0"\n',
+        "CHANGELOG.md": "## 0.4.0 — 2026-10-02\n\nNotes.\n",
+    }
     if plan:
-        (tmp_path / "docs" / "plans" / "v0.4.md").write_text("# Plan\n")
+        files["docs/plans/v0.4.md"] = "# Plan\n"
 
     if message is None:
-        check(tmp_path, version)
+        check(files.get, version)
     else:
         with pytest.raises(ReleaseError, match=message):
-            check(tmp_path, version)
+            check(files.get, version)
