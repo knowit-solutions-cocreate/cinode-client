@@ -300,7 +300,7 @@ levels) is personnel data.
 
 Every change in this repository was written, reviewed and fixed by Claude
 agents, one pull request per plan task, with a main session orchestrating and
-merging. [`CLAUDE.md`](CLAUDE.md) holds the workflow.
+merging. [`WORKFLOW.md`](WORKFLOW.md) holds the workflow.
 
 ## Licence
 
