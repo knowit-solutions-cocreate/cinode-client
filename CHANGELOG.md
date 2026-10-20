@@ -5,6 +5,16 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+- **Python 3.12 and 3.13** are supported; `requires-python` was `>=3.14`,
+  though nothing needed it. Unparenthesized `except A, B:` is parenthesized,
+  and modules that annotate with a `TYPE_CHECKING`-only import use
+  `from __future__ import annotations`.
+- **`scripts/release.py prepare`** can release a version without a plan:
+  with no version in progress in the roadmap, `prepare <version>` dates the
+  changelog, sets the version and runs `uv lock`, and leaves the plan and
+  roadmap alone. A patch with a plan is named `v<major>.<minor>.<patch>` in
+  the roadmap and `docs/plans/`.
+
 ## 0.4.0 — 2026-10-02
 
 Output for humans: `--format table` prints tables, and `--columns` picks what

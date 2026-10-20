@@ -30,12 +30,15 @@ Repository: https://github.com/knowit-solutions-cocreate/cinode-client. It is
   checkboxes in `docs/plan.md` in that task's PR.
 - **Plans are per version, and archived at release.** `docs/plan.md` holds
   the plan for the version in progress, and `docs/roadmap.md` lists the
-  versions, one line each. When a version is released, its plan moves
-  unchanged to `docs/plans/v<major>.<minor>.md` with `git mv`, so that
-  `git log --follow` keeps its history, and `docs/plan.md` becomes a stub
-  or the next version's plan. `scripts/release.py prepare` makes these
-  edits (see *Releasing* in `WORKFLOW.md`); it adds only the archive banner
-  to the plan, and fixes its relative links. An archived plan is frozen:
+  versions, one line each. A version is named after its number without a
+  zero patch: `v0.4` for 0.4.0, `v0.4.1` for 0.4.1. When a version is
+  released, its plan moves unchanged to `docs/plans/<name>.md` with
+  `git mv`, so that `git log --follow` keeps its history, and `docs/plan.md`
+  becomes a stub or the next version's plan. `scripts/release.py prepare`
+  makes these edits (see *Releasing* in `WORKFLOW.md`); it adds only the
+  archive banner to the plan, and fixes its relative links. A patch may be
+  released without a plan: it then has no roadmap row, and only the
+  changelog records it. An archived plan is frozen:
   only its links may be fixed. Before archiving, anything in the plan that
   is still true about the system moves to a living document (the design,
   the README or this file).

@@ -5,4 +5,4 @@ No version is in progress. v0.4 is released; its plan is archived at
 
 The next version is listed in [`docs/roadmap.md`](roadmap.md). When work on it
 starts, its plan replaces this file, and at its release it moves to
-`docs/plans/v<major>.<minor>.md`.
+`docs/plans/<name>.md`.
