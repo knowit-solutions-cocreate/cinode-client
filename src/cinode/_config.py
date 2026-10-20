@@ -47,7 +47,7 @@ def read_credentials(path: Path) -> tuple[str, str] | None:
     """
     try:
         data = path.read_bytes()
-    except FileNotFoundError, NotADirectoryError:
+    except (FileNotFoundError, NotADirectoryError):
         return None
     except OSError:
         raise AuthError(f"Cannot read the credentials file at {path}.") from None
@@ -80,7 +80,7 @@ def decode_basic(basic: str) -> tuple[str, str] | None:
     compact = "".join(basic.split())
     try:
         decoded = base64.b64decode(compact, validate=True).decode("utf-8")
-    except binascii.Error, ValueError:  # ValueError covers non-ASCII and UnicodeDecodeError
+    except (binascii.Error, ValueError):  # ValueError covers non-ASCII and UnicodeDecodeError
         return None
     access_id, colon, access_secret = decoded.partition(":")
     if not colon:

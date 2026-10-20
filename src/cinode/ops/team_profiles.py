@@ -1,5 +1,7 @@
 """Every member of a team with their profile, skipping members we may not read."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 

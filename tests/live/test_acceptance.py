@@ -7,6 +7,8 @@ failure shows only the message, never the document (pytest's assertion
 rewriting would otherwise print the call's arguments).
 """
 
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
