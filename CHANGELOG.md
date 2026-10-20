@@ -5,6 +5,11 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+## 0.4.1 — 2026-10-20
+
+Python 3.12 and 3.13 are supported, and the release script can release a patch
+without a plan.
+
 - **Python 3.12 and 3.13** are supported; `requires-python` was `>=3.14`,
   though nothing needed it. Unparenthesized `except A, B:` is parenthesized,
   and modules that annotate with a `TYPE_CHECKING`-only import use
