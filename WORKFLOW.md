@@ -141,13 +141,19 @@ Everything after the tag is automatic.
      own small PR.
    - Then, in a fresh worktree on a branch `release-v<version>`, it runs
      `uv run scripts/release.py prepare --summary "<paragraph>"`. The
-     version is the roadmap's in-progress one, `v0.4` giving `0.4.0`. The
-     script refuses a plan with open tasks. It moves the plan to
-     `docs/plans/v<major>.<minor>.md` with `git mv`, adds the archive
-     banner, rewrites its relative links for `docs/plans/`, and leaves the
-     stub in `docs/plan.md`. It turns the changelog's *Unreleased* entries
-     into the version's dated section under the summary, marks the roadmap
-     row released, sets the version in `pyproject.toml` and runs `uv lock`.
+     version is the roadmap's in-progress one, `v0.4` giving `0.4.0` and
+     `v0.4.1` giving `0.4.1`. The script refuses a plan with open tasks. It
+     moves the plan to `docs/plans/<name>.md` with `git mv`, adds the
+     archive banner, rewrites its relative links for `docs/plans/`, and
+     leaves the stub in `docs/plan.md`. It turns the changelog's
+     *Unreleased* entries into the version's dated section under the
+     summary, marks the roadmap row released, sets the version in
+     `pyproject.toml` and runs `uv lock`.
+   - A patch without a plan, when the roadmap has no version in progress
+     and `docs/plan.md` is the stub, is released the same way with the
+     version given: `prepare 0.4.1 --summary "..."`. The script then
+     touches only the changelog, `pyproject.toml` and the lockfile. The
+     roadmap gets no row for it.
      Last, it runs the same check as the release workflow on the result. If
      it fails partway, `git restore --staged --worktree . && git clean -fd
      docs/plans` undoes it. The summary is one or two sentences on what the

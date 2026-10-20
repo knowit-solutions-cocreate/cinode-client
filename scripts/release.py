@@ -5,8 +5,10 @@
     uv run scripts/release.py check 0.4.0
     uv run scripts/release.py notes 0.4.0
 
-`prepare` releases the roadmap's in-progress version, and `tag` the version
-`origin/main` has; either takes a version, which must then agree.
+`prepare` releases the roadmap's in-progress version, archiving its plan; with
+no version in progress it releases the version given, without a plan. `tag`
+releases the version `origin/main` has. Either takes a version, which must then
+agree with the one found.
 
 `prepare` makes the release PR's edits in the working tree; it commits nothing.
 `tag` checks `origin/main`, then tags it and pushes the tag, which publishes.
@@ -34,12 +36,12 @@ class ReleaseError(Exception):
     """The repository is not in the state a release needs."""
 
 
-def minor(version: str) -> str:
-    """`0.4.0` → `v0.4`, the name of a version's plan and roadmap row."""
+def plan_name(version: str) -> str:
+    """The name of a version's plan and roadmap row: `0.4.0` → `v0.4`, `0.4.1` → `v0.4.1`."""
     match = VERSION_RE.fullmatch(version)
     if match is None:
         raise ReleaseError(f"not a version: {version!r}, expected MAJOR.MINOR.PATCH")
-    return f"v{match[1]}.{match[2]}"
+    return f"v{match[1]}.{match[2]}" if match[3] == "0" else f"v{version}"
 
 
 def release_url(version: str) -> str:
@@ -69,7 +71,7 @@ def archive_plan(plan: str, version: str, date: str) -> str:
 
 
 def plan_stub(version: str) -> str:
-    name = minor(version)
+    name = plan_name(version)
     return (
         "# cinode-client — current plan\n"
         "\n"
@@ -78,7 +80,7 @@ def plan_stub(version: str) -> str:
         "\n"
         "The next version is listed in [`docs/roadmap.md`](roadmap.md). When work on it\n"
         "starts, its plan replaces this file, and at its release it moves to\n"
-        "`docs/plans/v<major>.<minor>.md`.\n"
+        "`docs/plans/<name>.md`.\n"
     )
 
 
@@ -94,17 +96,32 @@ def date_changelog(changelog: str, version: str, date: str, summary: str) -> str
     return f"{head}{heading}## {version} — {date}\n\n{intro}\n\n{rest}"
 
 
-def in_progress(roadmap: str) -> str:
-    """The version the roadmap has in progress, `v0.4` → `0.4.0`."""
-    found = re.findall(r"^\| \*\*v(\d+\.\d+)\*\* \| In progress ", roadmap, flags=re.M)
-    if len(found) != 1:
-        raise ReleaseError("docs/roadmap.md does not have exactly one version in progress")
-    return f"{found[0]}.0"
+def in_progress(roadmap: str) -> str | None:
+    """The version the roadmap has in progress, `v0.4` → `0.4.0` and `v0.4.1` → `0.4.1`,
+    or None when no version is."""
+    found = re.findall(r"^\| \*\*v(\d+\.\d+(?:\.\d+)?)\*\* \| In progress ", roadmap, flags=re.M)
+    if len(found) > 1:
+        raise ReleaseError("docs/roadmap.md has more than one version in progress")
+    if not found:
+        return None
+    return found[0] if found[0].count(".") == 2 else f"{found[0]}.0"
+
+
+def release(roadmap: str, given: str | None) -> tuple[str, bool]:
+    """The version to release, and whether it has a plan: the roadmap's in-progress
+    version, which `given` must then match, or else `given`, released without a plan."""
+    planned = in_progress(roadmap)
+    if planned is not None:
+        return agree(planned, given), True
+    if given is None:
+        raise ReleaseError("docs/roadmap.md has no version in progress; give the version")
+    plan_name(given)
+    return given, False
 
 
 def mark_released(roadmap: str, version: str, date: str) -> str:
     """Marks `version`'s roadmap row released, with links to its plan and release."""
-    name = minor(version)
+    name = plan_name(version)
     in_progress = f"| **{name}** | In progress ([plan](plan.md)) |"
     if in_progress not in roadmap:
         raise ReleaseError(f"docs/roadmap.md has no in-progress row for {name}")
@@ -177,14 +194,20 @@ def read_commit(root: Path, commit: str) -> Reader:
 
 
 def check(read: Reader, version: str) -> None:
-    """Everything a tag `v<version>` needs to be released."""
-    plan = f"docs/plans/{minor(version)}.md"
+    """Everything a tag `v<version>` needs to be released. A version the roadmap
+    lists must be marked released there, with its plan archived."""
+    name = plan_name(version)
     found = project_version(read("pyproject.toml"))
     if found != version:
         raise ReleaseError(f"pyproject.toml has version {found}, not {version}")
     release_notes(read("CHANGELOG.md") or "", version)
-    if read(plan) is None:
-        raise ReleaseError(f"{plan} is missing")
+    row = re.search(rf"^\| \*\*{re.escape(name)}\*\* \| (\w+)", read("docs/roadmap.md") or "", re.M)
+    if row is None:
+        return
+    if row[1] != "Released":
+        raise ReleaseError(f"docs/roadmap.md has {name} as '{row[1]}', not released")
+    if read(f"docs/plans/{name}.md") is None:
+        raise ReleaseError(f"docs/plans/{name}.md is missing")
 
 
 def agree(found: str, given: str | None) -> str:
@@ -215,25 +238,30 @@ def tag(root: Path, version: str | None) -> None:
 
 def prepare(root: Path, version: str | None, date: str, summary: str) -> None:
     roadmap = (root / "docs" / "roadmap.md").read_text()
-    version = agree(in_progress(roadmap), version)
+    version, planned = release(roadmap, version)
     plan_path = root / "docs" / "plan.md"
-    archived = root / "docs" / "plans" / f"{minor(version)}.md"
-    if archived.exists():
-        raise ReleaseError(f"{archived.relative_to(root)} already exists")
+    archived = root / "docs" / "plans" / f"{plan_name(version)}.md"
     # Every edit is computed before any file changes, so a refusal changes nothing.
-    plan = archive_plan(plan_path.read_text(), version, date)
     changelog = date_changelog((root / "CHANGELOG.md").read_text(), version, date, summary)
-    roadmap = mark_released(roadmap, version, date)
     pyproject = set_version((root / "pyproject.toml").read_text(), version)
+    plan = None
+    if planned:
+        if archived.exists():
+            raise ReleaseError(f"{archived.relative_to(root)} already exists")
+        plan = archive_plan(plan_path.read_text(), version, date)
+        roadmap = mark_released(roadmap, version, date)
+    elif "No version is in progress" not in plan_path.read_text():
+        raise ReleaseError("docs/roadmap.md has no version in progress, but docs/plan.md is a plan")
 
     # `uv lock` is the step most likely to fail, so it goes first.
     (root / "pyproject.toml").write_text(pyproject)
     subprocess.run(["uv", "lock"], cwd=root, check=True)
-    subprocess.run(["git", "mv", str(plan_path), str(archived)], cwd=root, check=True)
-    archived.write_text(plan)
-    plan_path.write_text(plan_stub(version))
+    if plan is not None:
+        subprocess.run(["git", "mv", str(plan_path), str(archived)], cwd=root, check=True)
+        archived.write_text(plan)
+        plan_path.write_text(plan_stub(version))
+        (root / "docs" / "roadmap.md").write_text(roadmap)
     (root / "CHANGELOG.md").write_text(changelog)
-    (root / "docs" / "roadmap.md").write_text(roadmap)
     check(read_tree(root), version)
 
 
@@ -241,7 +269,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Release helper for cinode-client.")
     commands = parser.add_subparsers(dest="command", required=True)
     prep = commands.add_parser("prepare", help="make the release PR's edits")
-    prep.add_argument("version", nargs="?", help="default: the roadmap's in-progress one")
+    prep.add_argument("version", nargs="?", help="the roadmap's in-progress one, or a patch")
     prep.add_argument("--summary", required=True, help="the changelog section's intro")
     prep.add_argument("--date", default=datetime.date.today().isoformat())
     commands.add_parser("check", help="check that a tag can be released").add_argument("version")

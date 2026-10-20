@@ -6,8 +6,8 @@ from release import (
     archive_plan,
     check,
     date_changelog,
-    in_progress,
     mark_released,
+    release,
     release_notes,
 )
 
@@ -46,7 +46,9 @@ def test_the_release_notes_are_the_dated_section() -> None:
         (lambda: archive_plan("# Plan\n\n- [x] done\n- [ ] open\n", "0.4.0", "d"), "unticked"),
         (lambda: date_changelog("## Unreleased\n\n## 0.3.0\n", "0.4.0", "d", "s"), "empty"),
         (lambda: mark_released("| **v0.4** | Later | x |", "0.4.0", "d"), "in-progress"),
-        (lambda: in_progress("| **v0.4** | Later | x |"), "exactly one"),
+        (lambda: release("| **v0.4** | Later | x |", None), "give the version"),
+        (lambda: release(IN_PROGRESS + IN_PROGRESS.replace("v0.4", "v0.5"), None), "more than one"),
+        (lambda: release(IN_PROGRESS, "0.4.1"), "not 0.4.1"),
     ],
 )
 def test_prepare_refuses_a_version_that_is_not_done(
@@ -56,12 +58,29 @@ def test_prepare_refuses_a_version_that_is_not_done(
         edit()
 
 
+IN_PROGRESS = "| **v0.4** | In progress ([plan](plan.md)) | x |\n"
+
+
+@pytest.mark.parametrize(
+    ("roadmap", "given", "expected"),
+    [
+        (IN_PROGRESS, None, ("0.4.0", True)),
+        (IN_PROGRESS.replace("v0.4", "v0.4.1"), "0.4.1", ("0.4.1", True)),
+        ("| **v0.4** | Later | x |", "0.4.1", ("0.4.1", False)),
+    ],
+)
+def test_the_roadmap_says_whether_the_release_has_a_plan(
+    roadmap: str, given: str | None, expected: tuple[str, bool]
+) -> None:
+    assert release(roadmap, given) == expected
+
+
 @pytest.mark.parametrize(
     ("version", "plan", "message"),
     [
         ("0.4.0", True, None),
         ("0.4.1", True, "version 0.4.0"),
-        ("0.4.0", False, "v0.4.md"),
+        ("0.4.0", False, "v0.4.md is missing"),
         ("0.4.0-rc1", True, "not a version"),
     ],
 )
@@ -71,6 +90,7 @@ def test_check_matches_the_tag_to_the_repository(
     files = {
         "pyproject.toml": '[project]\nversion = "0.4.0"\n',
         "CHANGELOG.md": "## 0.4.0 — 2026-10-02\n\nNotes.\n",
+        "docs/roadmap.md": "| **v0.4** | Released 2026-10-02 ([plan](plans/v0.4.md)) | x |\n",
     }
     if plan:
         files["docs/plans/v0.4.md"] = "# Plan\n"
@@ -80,3 +100,17 @@ def test_check_matches_the_tag_to_the_repository(
     else:
         with pytest.raises(ReleaseError, match=message):
             check(files.get, version)
+
+
+def test_check_needs_no_plan_for_a_version_the_roadmap_does_not_list() -> None:
+    files = {
+        "pyproject.toml": '[project]\nversion = "0.4.1"\n',
+        "CHANGELOG.md": "## 0.4.1 — 2026-10-20\n\nNotes.\n",
+        "docs/roadmap.md": "| **v0.4** | Released 2026-10-02 ([plan](plans/v0.4.md)) | x |\n",
+    }
+
+    check(files.get, "0.4.1")
+
+    files["docs/roadmap.md"] = "| **v0.4.1** | In progress ([plan](plan.md)) | x |\n"
+    with pytest.raises(ReleaseError, match="not released"):
+        check(files.get, "0.4.1")
