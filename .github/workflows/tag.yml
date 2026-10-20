@@ -42,8 +42,8 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Release Manager 8000 [bot]"
+          git config user.email "release-manager-8000[bot]@users.noreply.github.com"
           git tag -a "v$VERSION" -m "cinode-client $VERSION" "$GITHUB_SHA"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "v$VERSION"
           gh workflow run release.yml --ref "v$VERSION"
