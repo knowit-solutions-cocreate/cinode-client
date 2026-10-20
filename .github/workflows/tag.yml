@@ -1,0 +1,49 @@
+name: Tag
+
+# Merging the release PR is the release: the one push to main that changes the
+# version in pyproject.toml. This tags that commit and dispatches release.yml.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency: release
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Decide whether this push changed the version
+        id: release
+        run: |
+          version=$(python3 scripts/release.py version HEAD)
+          before=$(python3 scripts/release.py version HEAD~1)
+          if [[ "$version" == "$before" ]]; then
+            echo "The version is still $version; not a release."
+            exit 0
+          fi
+          if git rev-parse --verify --quiet "refs/tags/v$version" >/dev/null; then
+            echo "::error::the version changed to $version, but v$version already exists"
+            exit 1
+          fi
+          python3 scripts/release.py check "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Tag the release and dispatch the release workflow
+        if: steps.release.outputs.version
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "Release Manager 8000 [bot]"
+          git config user.email "release-manager-8000[bot]@users.noreply.github.com"
+          git tag -a "v$VERSION" -m "cinode-client $VERSION" "$GITHUB_SHA"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "v$VERSION"
+          gh workflow run release.yml --ref "v$VERSION"

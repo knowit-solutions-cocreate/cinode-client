@@ -1,18 +1,20 @@
 """Release helper: prepares the release PR, and checks and describes a tag.
 
     uv run scripts/release.py prepare --summary "One paragraph."
-    uv run scripts/release.py tag
+    uv run scripts/release.py version [COMMIT]
     uv run scripts/release.py check 0.4.0
     uv run scripts/release.py notes 0.4.0
+    uv run scripts/release.py tag
 
 `prepare` releases the roadmap's in-progress version, archiving its plan; with
-no version in progress it releases the version given, without a plan. `tag`
-releases the version `origin/main` has. Either takes a version, which must then
-agree with the one found.
+no version in progress it releases the version given, without a plan. It makes
+the release PR's edits in the working tree and commits nothing. Merging that PR
+is the release: the workflow sees the version change on `main`, tags it and
+publishes it.
 
-`prepare` makes the release PR's edits in the working tree; it commits nothing.
-`tag` checks `origin/main`, then tags it and pushes the tag, which publishes.
-`check` and `notes` are what the release workflow runs on a pushed tag.
+`version`, `check` and `notes` are what the workflow runs. `tag` is the
+fallback when a run failed before tagging: it checks `origin/main`, tags it and
+pushes the tag, which publishes. It takes a version, which must then agree.
 """
 
 import argparse
@@ -272,9 +274,11 @@ def main(argv: list[str] | None = None) -> int:
     prep.add_argument("version", nargs="?", help="the roadmap's in-progress one, or a patch")
     prep.add_argument("--summary", required=True, help="the changelog section's intro")
     prep.add_argument("--date", default=datetime.date.today().isoformat())
+    version_ = commands.add_parser("version", help="print the version at a commit")
+    version_.add_argument("commit", nargs="?", help="default: the working tree")
     commands.add_parser("check", help="check that a tag can be released").add_argument("version")
     commands.add_parser("notes", help="print the release's body").add_argument("version")
-    tag_ = commands.add_parser("tag", help="tag origin/main and push the tag")
+    tag_ = commands.add_parser("tag", help="tag origin/main by hand, after a failed run")
     tag_.add_argument("version", nargs="?", help="default: the one origin/main has")
     args = parser.parse_args(argv)
 
@@ -283,6 +287,9 @@ def main(argv: list[str] | None = None) -> int:
         match args.command:
             case "prepare":
                 prepare(root, args.version, args.date, args.summary)
+            case "version":
+                read = read_commit(root, args.commit) if args.commit else read_tree(root)
+                print(project_version(read("pyproject.toml")))
             case "check":
                 check(read_tree(root), args.version)
             case "tag":

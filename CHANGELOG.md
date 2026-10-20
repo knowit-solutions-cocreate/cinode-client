@@ -5,6 +5,12 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+- **Merging the release PR releases.** A tag workflow runs on every push to
+  `main`, and when the version in `pyproject.toml` changed it tags the merge
+  commit and dispatches the release workflow, which publishes as before.
+  `scripts/release.py tag` remains for pushing a tag by hand, and
+  `scripts/release.py version` prints the version at a commit.
+
 ## 0.4.1 — 2026-10-20
 
 Python 3.12 and 3.13 are supported, and the release script can release a patch
