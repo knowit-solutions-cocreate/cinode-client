@@ -927,7 +927,7 @@ repository.
 
 ## Tooling
 
-- Python 3.14, packaged with `uv`, `src/` layout, console script `cinode`.
+- Python 3.12 or later, packaged with `uv`, `src/` layout, console script `cinode`.
 - Runtime dependencies: `httpx`, `pydantic`, `typer` and `rich` (for tables; typer
   already depends on it), all at their latest versions.
 - Development dependencies: `pytest`, `respx`, `ruff` (lint and format),

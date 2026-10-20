@@ -53,7 +53,7 @@ def decode_token(jwt: str, *, issued_at: float) -> Token:
     payload = parts[1]
     try:
         decoded: Any = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
-    except ValueError, binascii.Error:
+    except (ValueError, binascii.Error):
         raise _malformed("its payload is not base64url-encoded JSON") from None
     if not isinstance(decoded, dict):
         raise _malformed("its payload is not a JSON object")
@@ -64,12 +64,12 @@ def decode_token(jwt: str, *, issued_at: float) -> Token:
             raise _malformed(f"its payload is missing claim '{claim}'")
         try:
             ids[claim] = int(claims[claim])
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             raise _malformed(f"claim '{claim}' is not an integer") from None
     iat, exp = claims.get("iat"), claims.get("exp")
     try:
         lifetime = float(exp) - float(iat) if iat is not None and exp is not None else None
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise _malformed("claim 'iat' or 'exp' is not a number") from None
     if lifetime is None or not math.isfinite(lifetime) or lifetime <= 0:
         lifetime = DEFAULT_LIFETIME
@@ -140,7 +140,7 @@ class TokenManager:
             jwt = body["access_token"]
             if not isinstance(jwt, str):
                 raise TypeError
-        except ValueError, KeyError, TypeError:
+        except (ValueError, KeyError, TypeError):
             raise UnexpectedResponseError(
                 "Cinode's token response has no access_token.", status=status, path=TOKEN_PATH
             ) from None

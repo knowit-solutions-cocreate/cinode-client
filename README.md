@@ -15,7 +15,7 @@ none. See
 
 ## Install
 
-Requires Python 3.14 and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.12 or later and [uv](https://docs.astral.sh/uv/).
 
 ```sh
 uv tool install .        # a `cinode` command on PATH
