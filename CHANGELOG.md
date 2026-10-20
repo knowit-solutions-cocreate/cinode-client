@@ -5,6 +5,11 @@ semantic versioning; while the version is 0.x, minor versions may break.
 
 ## Unreleased
 
+## 0.4.2 — 2026-10-20
+
+The release flow is fully automatic: merging the release PR tags and publishes
+it.
+
 - **Merging the release PR releases.** A tag workflow runs on every push to
   `main`, and when the version in `pyproject.toml` changed it tags the merge
   commit and dispatches the release workflow, which publishes as before.
