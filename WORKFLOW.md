@@ -131,8 +131,8 @@ or narrowing a task to get past it.
 
 ## Releasing
 
-A release is one PR, made by a script, and one tag, pushed by the human.
-Everything after the tag is automatic.
+A release is one PR, made by a script and merged by the human. Everything
+after the merge is automatic.
 
 1. **The orchestrator opens the release PR** once the last task is merged and
    every box in `docs/plan.md` is ticked, the *Done when* list included.
@@ -160,22 +160,29 @@ Everything after the tag is automatic.
      version is for, since it opens the release notes.
    - It commits, opens the PR titled `Release v<version>`, and stops. The
      release PR is mechanical, so it gets no reviewers; CI is enough.
-2. **The human merges the release PR**, with a squash body as in *The loop*,
-   and runs `uv run scripts/release.py tag`. It fetches `origin/main`, reads
-   the version there, runs the same check as the workflow against that
-   commit, and refuses a tag that already exists. Then it makes the annotated
-   tag `v<version>` on `origin/main` and pushes it.
-3. **`.github/workflows/release.yml` publishes.** On a `v*` tag it checks that
-   the tag is on `main`, and, with `scripts/release.py check`, that it matches
-   the version in `pyproject.toml`, a dated changelog section and an archived
-   plan. It runs the four checks, builds the wheel and sdist with `uv build`,
-   and creates the GitHub release `cinode-client <version>` with them
-   attached. Its body, from `scripts/release.py notes`, is that changelog
-   section and an *Install* block with the wheel's URL. If a step before the
-   last fails, nothing is published. Fix it in a PR, delete any draft release
-   a failed upload left, delete the tag both remotely and locally
-   (`git push --delete origin v<version> && git tag -d v<version>`), and run
-   `release.py tag` again.
+2. **The human merges the release PR**, with a squash body as in *The loop*.
+   That merge is the release.
+3. **`.github/workflows/tag.yml` tags.** It runs on every push to `main`
+   and compares the version in `pyproject.toml` with the previous commit's;
+   unchanged, it stops there, so only the release PR's merge goes on. A
+   version that changed to one already tagged is an error. It runs
+   `scripts/release.py check`, which wants a dated changelog section for
+   the version and the archived plan if the roadmap lists it, makes the
+   annotated tag `v<version>` on the merge commit, pushes it, and
+   dispatches the release workflow, since a tag pushed by a workflow does
+   not trigger one.
+4. **`.github/workflows/release.yml` publishes.** On a `v*` tag it checks
+   that the tag is on `main` and runs the same `check`, then the four
+   checks, builds the wheel and sdist with `uv build`, and creates the
+   GitHub release `cinode-client <version>` with them attached. Its body,
+   from `scripts/release.py notes`, is that changelog section and an
+   *Install* block with the wheel's URL. If a step before the last fails,
+   nothing is published: fix it in a PR that does not change the version
+   and rerun the workflow on the tag, `gh workflow run release.yml --ref
+   v<version>`. If the tag itself is wrong, delete it both remotely and
+   locally (`git push --delete origin v<version> && git tag -d v<version>`)
+   and run `uv run scripts/release.py tag` by hand, which pushes it and so
+   publishes.
 
 ## Working agreements
 

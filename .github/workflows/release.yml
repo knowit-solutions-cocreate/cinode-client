@@ -1,8 +1,12 @@
 name: Release
 
+# Runs on a pushed tag `v*`. tag.yml makes that tag when the release PR is
+# merged; a tag it pushes cannot trigger a workflow, so it dispatches this one.
+
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
